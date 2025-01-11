@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Tuple, List, NamedTuple, NoReturn
 
 from secp256k1lab.secp256k1 import Scalar, GE
@@ -138,15 +140,112 @@ class ParticipantMsg(NamedTuple):
     pubnonce: bytes
     enc_shares: List[Scalar]
 
+    def to_bytes(self) -> bytes:
+        return (
+            self.simpl_pmsg.to_bytes()
+            + self.pubnonce
+            + b"".join(share.to_bytes() for share in self.enc_shares)
+        )
+
+    @staticmethod
+    def from_bytes_and_n(b: bytes, n: int) -> ParticipantMsg:
+        rest = b
+
+        # Read enc_shares (32*n bytes)
+        if len(rest) < 32 * n:
+            raise ValueError
+        enc_secshares, rest = (
+            [
+                Scalar.from_bytes(rest[i : i + 32])
+                for i in range(len(rest) - 32 * n, len(rest), 32)
+            ],
+            rest[: len(rest) - 32 * n],
+        )
+
+        # Read pubnonce (33 bytes)
+        if len(rest) < 33:
+            raise ValueError
+        pubnonce, rest = rest[-33:], rest[:-33]
+
+        # Read simpl_pmsg
+        simpl_pmsg = simplpedpop.ParticipantMsg.from_bytes(rest)
+
+        # len(rest) check is unnecessary. simpl_pmg raises ValueError
+        # if `rest` isn't fully consumed
+        return ParticipantMsg(simpl_pmsg, pubnonce, enc_secshares)
+
 
 class CoordinatorMsg(NamedTuple):
     simpl_cmsg: simplpedpop.CoordinatorMsg
     pubnonces: List[bytes]
 
+    def to_bytes(self) -> bytes:
+        return self.simpl_cmsg.to_bytes() + b"".join(self.pubnonces)
+
+    @staticmethod
+    def from_bytes_and_n(b: bytes, n: int) -> CoordinatorMsg:
+        rest = b
+
+        # Read pubnonces (33*n bytes)
+        if len(rest) < 33 * n:
+            raise ValueError
+        pubnonces, rest = (
+            [rest[i : i + 33] for i in range(len(rest) - 33 * n, len(rest), 33)],
+            rest[: len(rest) - 33 * n],
+        )
+
+        # Read simpl_cmsg
+        simpl_cmsg = simplpedpop.CoordinatorMsg.from_bytes_and_n(rest, n)
+
+        # len(rest) check is unnecessary. simpl_cmg raises ValueError
+        # if `rest`` isn't fully consumed
+        return CoordinatorMsg(simpl_cmsg, pubnonces)
+
 
 class CoordinatorInvestigationMsg(NamedTuple):
     enc_partial_secshares: List[Scalar]
     partial_pubshares: List[GE]
+
+    def to_bytes(self) -> bytes:
+        secshares_bytes = b"".join(
+            share.to_bytes() for share in self.enc_partial_secshares
+        )
+        pubshares_bytes = b"".join(
+            P.to_bytes_compressed_with_infinity() for P in self.partial_pubshares
+        )
+        return secshares_bytes + pubshares_bytes
+
+    @staticmethod
+    def from_bytes(b: bytes) -> CoordinatorInvestigationMsg:
+        rest = b
+
+        # Compute n
+        n, remainder = divmod(len(rest), (32 + 33))
+        if remainder != 0:
+            raise ValueError
+
+        # Read enc_partial_secshares (32*n bytes)
+        if len(rest) < 32 * n:
+            raise ValueError
+        enc_partial_secshares, rest = (
+            [Scalar.from_bytes(rest[i : i + 32]) for i in range(0, 32 * n, 32)],
+            rest[32 * n :],
+        )
+
+        # Read partial_pubshares (33*n bytes)
+        if len(rest) < 33 * n:
+            raise ValueError
+        partial_pubshares, rest = (
+            [
+                GE.from_bytes_with_infinity(rest[i : i + 33])
+                for i in range(0, 33 * n, 33)
+            ],
+            rest[33 * n :],
+        )
+
+        if len(rest) != 0:
+            raise ValueError
+        return CoordinatorInvestigationMsg(enc_partial_secshares, partial_pubshares)
 
 
 ###

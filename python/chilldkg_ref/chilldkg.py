@@ -8,6 +8,8 @@ their arguments and return values, and the exceptions they raise; see also the
 `__all__` list. All other definitions are internal.
 """
 
+from __future__ import annotations
+
 from secrets import token_bytes as random_bytes
 from typing import Any, Tuple, List, NamedTuple, NewType, Optional, NoReturn, Dict
 
@@ -207,6 +209,36 @@ class SessionParams(NamedTuple):
     hostpubkeys: List[bytes]
     t: int
 
+    def to_bytes(self) -> bytes:
+        return b"".join(self.hostpubkeys) + self.t.to_bytes(4, byteorder="big")
+
+    @staticmethod
+    def from_bytes(b: bytes) -> SessionParams:
+        rest = b
+
+        # Read t (4 bytes)
+        if len(rest) < 4:
+            raise ValueError
+        t, rest = int.from_bytes(rest[-4:], byteorder="big"), rest[:-4]
+
+        # Compute n
+        n, remainder = divmod(len(rest), 33)
+        if remainder != 0:
+            raise ValueError
+
+        # Read hostpubkeys (33*n bytes)
+        if len(rest) < 33 * n:
+            raise ValueError
+        hostpubkeys, rest = (
+            [rest[i : i + 33] for i in range(0, 33 * n, 33)],
+            rest[33 * n :],
+        )
+
+        # REVIEW should we call params_validate here?
+        if len(rest) != 0:
+            raise ValueError
+        return SessionParams(hostpubkeys, t)
+
 
 def params_validate(params: SessionParams) -> None:
     (hostpubkeys, t) = params
@@ -325,6 +357,46 @@ class DKGOutput(NamedTuple):
     threshold_pubkey: bytes
     pubshares: List[bytes]
 
+    def to_bytes(self) -> bytes:
+        secshare = self.secshare if self.secshare is not None else b""
+        return secshare + self.threshold_pubkey + b"".join(self.pubshares)
+
+    # REVIEW: we could eleminate the `is_participant` argument by checking for
+    # divisibility by 33. As the size can be either 33 + 33 * n, or
+    # 32 + 33 + 33 * n
+    @staticmethod
+    def from_bytes(b: bytes, is_participant: bool) -> DKGOutput:
+        rest = b
+
+        # Read secshare (None or 32 bytes)
+        secshare = None
+        if is_participant:
+            if len(rest) < 32:
+                raise ValueError
+            secshare, rest = rest[:32], rest[32:]
+
+        # Read threshold_pubkey (33 bytes)
+        if len(rest) < 33:
+            raise ValueError
+        threshold_pubkey, rest = rest[:33], rest[33:]
+
+        # Compute n
+        n, remainder = divmod(len(rest), 33)
+        if remainder != 0:
+            raise ValueError
+
+        # Read pubshares (33*n bytes)
+        if len(rest) < 33 * n:
+            raise ValueError
+        pubshares, rest = (
+            [rest[i : i + 33] for i in range(0, 33 * n, 33)],
+            rest[33 * n :],
+        )
+
+        if len(rest) != 0:
+            raise ValueError
+        return DKGOutput(secshare, threshold_pubkey, pubshares)
+
 
 RecoveryData = NewType("RecoveryData", bytes)
 
@@ -337,22 +409,83 @@ RecoveryData = NewType("RecoveryData", bytes)
 class ParticipantMsg1(NamedTuple):
     enc_pmsg: encpedpop.ParticipantMsg
 
+    def to_bytes(self) -> bytes:
+        return self.enc_pmsg.to_bytes()
+
+    @staticmethod
+    def from_bytes_and_n(b: bytes, n: int) -> ParticipantMsg1:
+        enc_pmsg = encpedpop.ParticipantMsg.from_bytes_and_n(b, n)
+        return ParticipantMsg1(enc_pmsg)
+
 
 class ParticipantMsg2(NamedTuple):
     sig: bytes
+
+    def to_bytes(self) -> bytes:
+        return self.sig
+
+    @staticmethod
+    def from_bytes(b: bytes) -> ParticipantMsg2:
+        if len(b) != 64:
+            raise ValueError
+        return ParticipantMsg2(b)
 
 
 class CoordinatorMsg1(NamedTuple):
     enc_cmsg: encpedpop.CoordinatorMsg
     enc_secshares: List[Scalar]
 
+    def to_bytes(self) -> bytes:
+        return self.enc_cmsg.to_bytes() + b"".join(
+            share.to_bytes() for share in self.enc_secshares
+        )
+
+    @staticmethod
+    def from_bytes_and_n(b: bytes, n: int) -> CoordinatorMsg1:
+        rest = b
+
+        # Read enc_secshares (32*n bytes)
+        if len(rest) < 32 * n:
+            raise ValueError
+        enc_secshares, rest = (
+            [
+                Scalar.from_bytes(rest[i : i + 32])
+                for i in range(len(rest) - 32 * n, len(rest), 32)
+            ],
+            rest[: len(rest) - 32 * n],
+        )
+
+        # Read enc_cmsg
+        enc_cmsg = encpedpop.CoordinatorMsg.from_bytes_and_n(rest, n)
+
+        # len(rest) check is unnecessary. enc_cmg raises ValueError
+        # if `rest`` isn't fully consumed
+        return CoordinatorMsg1(enc_cmsg, enc_secshares)
+
 
 class CoordinatorMsg2(NamedTuple):
     cert: bytes
 
+    def to_bytes(self) -> bytes:
+        return self.cert
+
+    @staticmethod
+    def from_bytes_and_n(b: bytes, n: int) -> CoordinatorMsg2:
+        if len(b) != certeq_cert_len(n):
+            raise ValueError
+        return CoordinatorMsg2(b)
+
 
 class CoordinatorInvestigationMsg(NamedTuple):
     enc_cinv: encpedpop.CoordinatorInvestigationMsg
+
+    def to_bytes(self) -> bytes:
+        return self.enc_cinv.to_bytes()
+
+    @staticmethod
+    def from_bytes(b: bytes) -> CoordinatorInvestigationMsg:
+        enc_cinv = encpedpop.CoordinatorInvestigationMsg.from_bytes(b)
+        return CoordinatorInvestigationMsg(enc_cinv)
 
 
 def deserialize_recovery_data(
