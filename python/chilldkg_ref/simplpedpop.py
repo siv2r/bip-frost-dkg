@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from secrets import token_bytes as random_bytes
 from typing import List, NamedTuple, NewType, Tuple, Optional, NoReturn
 
@@ -55,6 +57,35 @@ class ParticipantMsg(NamedTuple):
     com: VSSCommitment
     pop: Pop
 
+    def to_bytes(self) -> bytes:
+        return self.com.to_bytes() + self.pop
+
+    @staticmethod
+    def from_bytes(b: bytes) -> ParticipantMsg:
+        rest = b
+
+        # Read Pop (64 bytes)
+        if len(rest) < 64:
+            raise ValueError
+        pop, rest = Pop(rest[-64:]), rest[:-64]
+
+        # Compute t
+        t, remainder = divmod(len(rest), 33)
+        if remainder != 0:
+            raise ValueError
+
+        # Read com (33*t bytes)
+        if len(rest) < 33 * t:
+            raise ValueError
+        com, rest = (
+            VSSCommitment.from_bytes_and_t(rest[: 33 * t], t),
+            rest[33 * t :],
+        )
+
+        if len(rest) != 0:
+            raise ValueError
+        return ParticipantMsg(com, pop)
+
 
 class CoordinatorMsg(NamedTuple):
     coms_to_secrets: List[GE]
@@ -69,9 +100,81 @@ class CoordinatorMsg(NamedTuple):
             ]
         ) + b"".join(self.pops)
 
+    @staticmethod
+    def from_bytes_and_n(b: bytes, n: int) -> CoordinatorMsg:
+        rest = b
+
+        # Read coms_to_secrets (33*n bytes)
+        if len(rest) < 33 * n:
+            raise ValueError
+        coms_to_secrets, rest = (
+            [
+                GE.from_bytes_with_infinity(rest[i : i + 33])
+                for i in range(0, 33 * n, 33)
+            ],
+            rest[33 * n :],
+        )
+
+        # Read pops (64*n bytes)
+        if len(rest) < 64 * n:
+            raise ValueError
+        pops, rest = (
+            [Pop(rest[i : i + 64]) for i in range(len(rest) - 64 * n, len(rest), 64)],
+            rest[: len(rest) - 64 * n],
+        )
+
+        # Compute (t - 1)
+        t_minus_one, remainder = divmod(len(rest), 33)
+        if remainder != 0:
+            raise ValueError
+
+        # Read sum_coms_to_nonconst_terms (33*(t-1) bytes)
+        if len(rest) < 33 * t_minus_one:
+            raise ValueError
+        sum_coms_to_nonconst_terms, rest = (
+            [
+                GE.from_bytes_with_infinity(rest[i : i + 33])
+                for i in range(0, 33 * t_minus_one, 33)
+            ],
+            rest[33 * t_minus_one :],
+        )
+
+        if len(rest) != 0:
+            raise ValueError
+        return CoordinatorMsg(coms_to_secrets, sum_coms_to_nonconst_terms, pops)
+
 
 class CoordinatorInvestigationMsg(NamedTuple):
     partial_pubshares: List[GE]
+
+    def to_bytes(self) -> bytes:
+        return b"".join(
+            [P.to_bytes_compressed_with_infinity() for P in self.partial_pubshares]
+        )
+
+    @staticmethod
+    def from_bytes(b: bytes) -> CoordinatorInvestigationMsg:
+        rest = b
+
+        # Compute n
+        n, remainder = divmod(len(rest), 33)
+        if remainder != 0:
+            raise ValueError
+
+        # Read partial_pubshares (33*n bytes)
+        if len(rest) < 33 * n:
+            raise ValueError
+        partial_pubshares, rest = (
+            [
+                GE.from_bytes_with_infinity(rest[i : i + 33])
+                for i in range(0, 33 * n, 33)
+            ],
+            rest[: 33 * n],
+        )
+
+        if len(rest) != 0:
+            raise ValueError
+        return CoordinatorInvestigationMsg(partial_pubshares)
 
 
 ###
