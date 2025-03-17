@@ -79,10 +79,7 @@ def generate_params_id_vectors():
         params = chilldkg.SessionParams(hostpubkeys, t)
         expected_params_id = params_id(params)
         test_case = {
-            "params": {
-                "hostpubkeys": bytes_list_to_hex(hostpubkeys),
-                "t": t
-            },
+            "params": params_asdict(params),
             "expected_params_id": bytes_to_hex(expected_params_id),
         }
         if case["comment"]:
@@ -91,49 +88,40 @@ def generate_params_id_vectors():
 
     # --- Error test case 1: Invalid threshold ---
     t = 0
-    params = chilldkg.SessionParams(hostpubkeys, t)
+    invalid_params = chilldkg.SessionParams(hostpubkeys, t)
     error = expect_exception(
-        lambda: params_id(params),
+        lambda: params_id(invalid_params),
         chilldkg.ThresholdOrCountError
     )
     vectors["error_test_cases"].append({
-        "params": {
-            "hostpubkeys": bytes_list_to_hex(hostpubkeys),
-            "t": t
-        },
+        "params": params_asdict(invalid_params),
         "error": error,
         "comment": "invalid threshold value"
     })
-    # --- Error test case 2: hostpubkeys list contains duplicate values---
+    # --- Error test case 2: hostpubkeys list contains duplicate values ---
     t = 2
     with_duplicate = [hostpubkeys[0], hostpubkeys[1], hostpubkeys[2], hostpubkeys[1]]
-    params = chilldkg.SessionParams(with_duplicate, t)
+    duplicate_params = chilldkg.SessionParams(with_duplicate, t)
     error = expect_exception(
-        lambda: params_id(params),
+        lambda: params_id(duplicate_params),
         chilldkg.DuplicateHostPubkeyError
     )
     vectors["error_test_cases"].append({
-        "params": {
-            "hostpubkeys": bytes_list_to_hex(with_duplicate),
-            "t": t
-        },
+        "params": params_asdict(duplicate_params),
         "error": error,
         "comment": "hostpubkeys list contains duplicate values"
     })
-    # --- Error test case 2: hostpubkeys list contains an invalid value---
+    # --- Error test case 2: hostpubkeys list contains an invalid value ---
     invalid_hostpubkey = b"\x03" + 31 * b"\x00" + b"\x05"  # Invalid x-coordinate
     t = 2
     with_invalid = [hostpubkeys[0], invalid_hostpubkey, hostpubkeys[2]]
-    params = chilldkg.SessionParams(with_invalid, t)
+    invalid_params = chilldkg.SessionParams(with_invalid, t)
     error = expect_exception(
-        lambda: params_id(params),
+        lambda: params_id(invalid_params),
         chilldkg.InvalidHostPubkeyError
     )
     vectors["error_test_cases"].append({
-        "params": {
-            "hostpubkeys": bytes_list_to_hex(with_invalid),
-            "t": t
-        },
+        "params": params_asdict(invalid_params),
         "error": error,
         "comment": "hostpubkeys list contains an invalid value"
     })

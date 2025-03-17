@@ -1,6 +1,11 @@
 import json
 from typing import NoReturn, List
 
+from chilldkg_ref.chilldkg import (
+    SessionParams,
+    ParticipantMsg1
+)
+
 def bytes_to_hex(data: bytes) -> str:
     return data.hex().upper()
 
@@ -14,7 +19,7 @@ def write_json(filename: str, data: dict) -> NoReturn:
     with open(filename, 'w') as f:
         json.dump(data, f, indent=4)
 
-def exception_to_dict(e: Exception) -> dict:
+def exception_asdict(e: Exception) -> dict:
     error_info = {"type": e.__class__.__name__}
     error_info.update(e.__dict__)
     # the last argument might contain the error message
@@ -26,8 +31,28 @@ def expect_exception(try_fn, expected_exception):
     try:
         try_fn()
     except expected_exception as e:
-        return exception_to_dict(e)
+        return exception_asdict(e)
     except Exception as e:
         raise AssertionError(f"Wrong exception raised: {type(e).__name__}")
     else:
         raise AssertionError("Expected exception")
+
+def params_asdict(params: SessionParams) -> dict:
+    return {
+        "hostpubkeys": bytes_list_to_hex(params.hostpubkeys),
+        "t": params.t
+    }
+
+def pmsg1_asdict(pmsg1: ParticipantMsg1) -> dict:
+    enc_pmsg = pmsg1.enc_pmsg
+    simpl_pmsg = enc_pmsg.simpl_pmsg
+
+    result = {
+        "simpl_pmsg": {
+            "com": bytes_to_hex(simpl_pmsg.com.to_bytes()),
+            "pop": bytes_to_hex(pmsg1.enc_pmsg.simpl_pmsg.pop)
+        },
+        "pubnonce": bytes_to_hex(enc_pmsg.pubnonce),
+        "enc_shares": [str(share).upper() for share in enc_pmsg.enc_shares]
+    }
+    return result
