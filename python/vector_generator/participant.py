@@ -20,8 +20,7 @@ def generate_participant_step1_vectors():
     random = bytes.fromhex("42B53D62E27380D6F7096EDA1C28C57DDB89FCD4CE5B843EDAC220E165B5A7EC")
 
     # --- Valid test case 1 ---
-    t = 2
-    params = chilldkg.SessionParams(hostpubkeys, t)
+    params = chilldkg.SessionParams(hostpubkeys, 2)
     _, expected_pmsg1 = chilldkg.participant_step1(hostseckeys[0], params, random)
     vectors["valid_test_cases"].append({
         "hostseckey": bytes_to_hex(hostseckeys[0]),
@@ -58,8 +57,7 @@ def generate_participant_step1_vectors():
         "comment": "host secret key is doesn't match any hostpubkey"
     })
     # --- Error test case 3: Invalid threshold ---
-    t = 0
-    invalid_params = chilldkg.SessionParams(hostpubkeys, t)
+    invalid_params = chilldkg.SessionParams(hostpubkeys, 0)
     error = expect_exception(
         lambda: participant_step1(hostseckeys[0], invalid_params, random),
         chilldkg.ThresholdOrCountError
@@ -72,9 +70,8 @@ def generate_participant_step1_vectors():
         "comment": "invalid threshold value"
     })
     # --- Error test case 4: hostpubkeys list contains duplicate values ---
-    t = 2
     with_duplicate = [hostpubkeys[0], hostpubkeys[1], hostpubkeys[2], hostpubkeys[1]]
-    duplicate_params = chilldkg.SessionParams(with_duplicate, t)
+    duplicate_params = chilldkg.SessionParams(with_duplicate, 2)
     error = expect_exception(
         lambda: participant_step1(hostseckeys[0], duplicate_params, random),
         chilldkg.DuplicateHostPubkeyError
@@ -88,9 +85,8 @@ def generate_participant_step1_vectors():
     })
     # --- Error test case 5: hostpubkeys list contains an invalid value ---
     invalid_hostpubkey = b"\x03" + 31 * b"\x00" + b"\x05"  # Invalid x-coordinate
-    t = 2
     with_invalid = [hostpubkeys[0], invalid_hostpubkey, hostpubkeys[2]]
-    invalid_params = chilldkg.SessionParams(with_invalid, t)
+    invalid_params = chilldkg.SessionParams(with_invalid, 2)
     error = expect_exception(
         lambda: participant_step1(hostseckeys[0], invalid_params, random),
         chilldkg.InvalidHostPubkeyError

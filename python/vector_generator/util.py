@@ -3,7 +3,8 @@ from typing import NoReturn, List
 
 from chilldkg_ref.chilldkg import (
     SessionParams,
-    ParticipantMsg1
+    ParticipantMsg1,
+    CoordinatorMsg1
 )
 
 def bytes_to_hex(data: bytes) -> str:
@@ -54,5 +55,28 @@ def pmsg1_asdict(pmsg1: ParticipantMsg1) -> dict:
         },
         "pubnonce": bytes_to_hex(enc_pmsg.pubnonce),
         "enc_shares": [str(share).upper() for share in enc_pmsg.enc_shares]
+    }
+    return result
+
+def cmsg1_asdict(cmsg1: CoordinatorMsg1) -> dict:
+    enc_cmsg = cmsg1.enc_cmsg
+    simpl_cmsg = enc_cmsg.simpl_cmsg
+
+    coms_to_secrets = [
+        ge.to_bytes_compressed_with_infinity()
+        for ge in simpl_cmsg.coms_to_secrets
+    ]
+    sum_coms_to_nonconst_terms = [
+        ge.to_bytes_compressed_with_infinity()
+        for ge in simpl_cmsg.sum_coms_to_nonconst_terms
+    ]
+    result = {
+        "simpl_cmsg": {
+            "coms_to_secrets": bytes_list_to_hex(coms_to_secrets),
+            "sum_coms_to_nonconst_terms": bytes_list_to_hex(sum_coms_to_nonconst_terms),
+            "pops": bytes_list_to_hex(simpl_cmsg.pops)
+        },
+        "pubnonces": bytes_list_to_hex(enc_cmsg.pubnonces),
+        "enc_secshares": [str(share).upper() for share in cmsg1.enc_secshares]
     }
     return result
