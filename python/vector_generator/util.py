@@ -5,7 +5,10 @@ from chilldkg_ref.chilldkg import (
     SessionParams,
     ParticipantMsg1,
     ParticipantMsg2,
-    CoordinatorMsg1
+    CoordinatorMsg1,
+    CoordinatorMsg2,
+    DKGOutput,
+    RecoveryData
 )
 import chilldkg_ref.encpedpop as encpedpop
 
@@ -113,3 +116,16 @@ def cmsg1_asdict(cmsg1: CoordinatorMsg1) -> dict:
         "enc_secshares": [str(share).upper() for share in cmsg1.enc_secshares]
     }
     return result
+
+def cmsg2_asdict(cmsg2: CoordinatorMsg2) -> dict:
+    return {
+        "cert": bytes_to_hex(cmsg2.cert)
+    }
+
+def dkg_output_asdict(dkg_output: DKGOutput) -> dict:
+    secshare =  bytes_to_hex(dkg_output.secshare) if dkg_output.secshare else None
+    return {
+        "secshare": secshare,
+        "threshold_pubkey": bytes_to_hex(dkg_output.threshold_pubkey),
+        "pubshares": bytes_list_to_hex(dkg_output.pubshares)
+    }
