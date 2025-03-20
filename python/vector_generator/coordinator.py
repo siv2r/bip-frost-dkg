@@ -22,13 +22,14 @@ def generate_coordinator_step1_vectors():
         "FDE223740111491D5E60BEFB447A2D8C0B12D4B1CE1A0D6BF5A16CBA7E420153",
         "E5CFC54DA8EE57BA97C389060D00BB840A9DDF6BF1E32AE3D3598373EF384EE7"
     ])
+    assert len(randoms) == len(hostpubkeys)
 
-    # --- Valid Test Case ---
+    # --- Valid Test Case 1 ---
     params = chilldkg.SessionParams(hostpubkeys, 2)
     pmsgs1 = []
     for i in range(len(hostpubkeys)):
-        _, pmsg1 = chilldkg.participant_step1(hostseckeys[i], params, randoms[i])
-        pmsgs1.append(pmsg1)
+        _, msg = chilldkg.participant_step1(hostseckeys[i], params, randoms[i])
+        pmsgs1.append(msg)
     _, expected_cmsg1 = coordinator_step1(pmsgs1, params)
     vectors["valid_test_cases"].append({
         "pmsgs1": [pmsg1_asdict(m) for m in pmsgs1],
@@ -80,7 +81,7 @@ def generate_coordinator_step1_vectors():
     invalid_pmsgs1[1].enc_pmsg.enc_shares.pop()
     error = expect_exception(
         lambda: coordinator_step1(invalid_pmsgs1, params),
-        chilldkg.FaultyParticipantOrCoordinatorError
+        chilldkg.FaultyParticipantOrCoordinatorError # REVIEW: why is this working? shouldn't it raise an error saying encpedpop.FaultyParticipantOrCoordinatorError was raised instead?
     )
     vectors["error_test_cases"].append({
         "pmsgs1": [pmsg1_asdict(m) for m in invalid_pmsgs1],

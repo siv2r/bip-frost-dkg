@@ -4,8 +4,10 @@ from typing import NoReturn, List
 from chilldkg_ref.chilldkg import (
     SessionParams,
     ParticipantMsg1,
+    ParticipantMsg2,
     CoordinatorMsg1
 )
+import chilldkg_ref.encpedpop as encpedpop
 
 def bytes_to_hex(data: bytes) -> str:
     return data.hex().upper()
@@ -22,7 +24,17 @@ def write_json(filename: str, data: dict) -> NoReturn:
 
 def exception_asdict(e: Exception) -> dict:
     error_info = {"type": e.__class__.__name__}
-    error_info.update(e.__dict__)
+
+    for key, value in e.__dict__.items():
+        if isinstance(value, (str, int)):
+            error_info[key] = value
+        elif isinstance(value, bytes):
+            error_info[key] = bytes_to_hex(value)
+        elif isinstance(value, encpedpop.ParticipantInvestigationData):
+            error_info[key] = pinv_data_asdict(value)
+        else:
+            raise NotImplementedError(f"Conversion for type {type(value).__name__} is not implemented")
+
     # the last argument might contain the error message
     if len(e.args) > 0 and isinstance(e.args[-1], str):
         error_info.setdefault("message", e.args[-1])
@@ -57,6 +69,27 @@ def pmsg1_asdict(pmsg1: ParticipantMsg1) -> dict:
         "enc_shares": [str(share).upper() for share in enc_pmsg.enc_shares]
     }
     return result
+
+def pmsg2_asdict(pmsg2: ParticipantMsg2) -> dict:
+    return {
+        "sig": bytes_to_hex(pmsg2.sig)
+    }
+
+def pinv_data_asdict(pinv_data: encpedpop.ParticipantInvestigationData) -> dict:
+    secshare = pinv_data.simpl_bstate.secshare.to_bytes()
+    pubshare = pinv_data.simpl_bstate.pubshare.to_bytes_compressed_with_infinity()
+    enc_secshare = pinv_data.enc_secshare.to_bytes()
+    pads = [pad.to_bytes() for pad in pinv_data.pads]
+    return {
+        "simpl_bstate": {
+            "n": pinv_data.simpl_bstate.n,
+            "idx": pinv_data.simpl_bstate.idx,
+            "secshare": bytes_to_hex(secshare),
+            "pubshare": bytes_to_hex(pubshare)
+        },
+        "enc_secshare": bytes_to_hex(enc_secshare),
+        "pads": bytes_list_to_hex(pads),
+    }
 
 def cmsg1_asdict(cmsg1: CoordinatorMsg1) -> dict:
     enc_cmsg = cmsg1.enc_cmsg
