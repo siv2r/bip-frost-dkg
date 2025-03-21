@@ -19,6 +19,7 @@ def generate_coordinator_step1_vectors():
         "F129C2D30096C972F14BB6764CC003C97119C0E32831EA4858F0DD0DFB780FAA"
     ])
     hostpubkeys = [chilldkg.hostpubkey_gen(sk) for sk in hostseckeys]
+    params = chilldkg.SessionParams(hostpubkeys, 2)
     randoms = hex_list_to_bytes([
         "42B53D62E27380D6F7096EDA1C28C57DDB89FCD4CE5B843EDAC220E165B5A7EC",
         "FDE223740111491D5E60BEFB447A2D8C0B12D4B1CE1A0D6BF5A16CBA7E420153",
@@ -27,7 +28,6 @@ def generate_coordinator_step1_vectors():
     assert len(randoms) == len(hostpubkeys)
 
     # --- Valid Test Case 1 ---
-    params = chilldkg.SessionParams(hostpubkeys, 2)
     pmsgs1 = []
     for i in range(len(hostpubkeys)):
         _, msg = chilldkg.participant_step1(hostseckeys[i], params, randoms[i])
@@ -171,4 +171,31 @@ def generate_coordinator_finalize_vectors():
 
 def generate_coordinator_investigate_vectors():
     vectors = {"valid_test_cases": [], "error_test_cases": []}
+
+    hostseckeys = hex_list_to_bytes([
+        "ADE179B2C56CB75868D44B333C16C89CB00DFDE378AD79C84D0CCE856E4F9207",
+        "94BB10C1DE15783C3F3E49167A0951CACD2803F13AAC456C816E88AB4AC76330",
+        "F129C2D30096C972F14BB6764CC003C97119C0E32831EA4858F0DD0DFB780FAA"
+    ])
+    hostpubkeys = [chilldkg.hostpubkey_gen(sk) for sk in hostseckeys]
+    params = chilldkg.SessionParams(hostpubkeys, 2)
+    randoms = hex_list_to_bytes([
+        "42B53D62E27380D6F7096EDA1C28C57DDB89FCD4CE5B843EDAC220E165B5A7EC",
+        "FDE223740111491D5E60BEFB447A2D8C0B12D4B1CE1A0D6BF5A16CBA7E420153",
+        "E5CFC54DA8EE57BA97C389060D00BB840A9DDF6BF1E32AE3D3598373EF384EE7"
+    ])
+    assert len(randoms) == len(hostpubkeys)
+
+    # --- Valid Test Case 1 ---
+    pmsgs1 = []
+    for i in range(len(hostpubkeys)):
+        _, msg = chilldkg.participant_step1(hostseckeys[i], params, randoms[i])
+        pmsgs1.append(msg)
+    cinv_msgs = coordinator_investigate(pmsgs1)
+    vectors["valid_test_cases"].append({
+        "pmsgs1": [pmsg1_asdict(m) for m in pmsgs1],
+        "params": params_asdict(params),
+        "expected_cinv_msgs": [cinv_msg_asdict(m) for m in cinv_msgs]
+    })
+
     return vectors
