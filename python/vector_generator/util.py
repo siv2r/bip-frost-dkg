@@ -8,7 +8,8 @@ from chilldkg_ref.chilldkg import (
     CoordinatorMsg1,
     CoordinatorMsg2,
     DKGOutput,
-    RecoveryData
+    RecoveryData,
+    CoordinatorInvestigationMsg
 )
 import chilldkg_ref.encpedpop as encpedpop
 
@@ -128,4 +129,13 @@ def dkg_output_asdict(dkg_output: DKGOutput) -> dict:
         "secshare": secshare,
         "threshold_pubkey": bytes_to_hex(dkg_output.threshold_pubkey),
         "pubshares": bytes_list_to_hex(dkg_output.pubshares)
+    }
+
+def cinv_msg_asdict(cinv_msg: CoordinatorInvestigationMsg) -> dict:
+    enc_cinv = cinv_msg.enc_cinv
+    enc_partial_secshares = [share.to_bytes() for share in enc_cinv.enc_partial_secshares]
+    partial_pubshares = [pubshare.to_bytes_compressed_with_infinity() for pubshare in enc_cinv.partial_pubshares]
+    return {
+        "enc_partial_secshares": bytes_list_to_hex(enc_partial_secshares),
+        "partial_pubshares": bytes_list_to_hex(partial_pubshares)
     }
