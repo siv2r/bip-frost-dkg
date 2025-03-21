@@ -241,6 +241,88 @@ def generate_participant_step2_vectors():
 
 def generate_participant_finalize_vectors():
     vectors = {"valid_test_cases": [], "error_test_cases": []}
+
+    hostseckeys = hex_list_to_bytes([
+        "ADE179B2C56CB75868D44B333C16C89CB00DFDE378AD79C84D0CCE856E4F9207",
+        "94BB10C1DE15783C3F3E49167A0951CACD2803F13AAC456C816E88AB4AC76330",
+        "F129C2D30096C972F14BB6764CC003C97119C0E32831EA4858F0DD0DFB780FAA"
+    ])
+    hostpubkeys = [chilldkg.hostpubkey_gen(sk) for sk in hostseckeys]
+    params = chilldkg.SessionParams(hostpubkeys, 2)
+    randoms = hex_list_to_bytes([
+        "42B53D62E27380D6F7096EDA1C28C57DDB89FCD4CE5B843EDAC220E165B5A7EC",
+        "FDE223740111491D5E60BEFB447A2D8C0B12D4B1CE1A0D6BF5A16CBA7E420153",
+        "E5CFC54DA8EE57BA97C389060D00BB840A9DDF6BF1E32AE3D3598373EF384EE7"
+    ])
+    assert len(randoms) == len(hostpubkeys)
+    pstates1 = []
+    pmsgs1 = []
+    for i in range(len(hostpubkeys)):
+        state, msg = participant_step1(hostseckeys[i], params, randoms[i])
+        pstates1.append(state)
+        pmsgs1.append(msg)
+    cstate, cmsg1 = chilldkg.coordinator_step1(pmsgs1, params)
+
+    # --- Valid test case 1 ---
+    pstates2 = []
+    pmsgs2 = []
+    for i in range(len(hostpubkeys)):
+        state, msg = participant_step2(hostseckeys[i], pstates1[i], cmsg1)
+        pstates2.append(state)
+        pmsgs2.append(msg)
+    cmsg2, cout, crec = chilldkg.coordinator_finalize(cstate, pmsgs2)
+    pout, prec = participant_finalize(pstates2[0], cmsg2)
+    vectors["valid_test_cases"].append({
+        "hostseckey": bytes_to_hex(hostseckeys[0]),
+        "params": params_asdict(params),
+        "random": bytes_to_hex(randoms[0]),
+        "pmsg1": pmsg1_asdict(pmsgs1[0]),
+        "cmsg1": cmsg1_asdict(cmsg1),
+        "pmsg2": pmsg2_asdict(pmsgs2[0]),
+        "csmg2": cmsg2_asdict(cmsg2),
+        "expected_output": {
+            "dkg_output": dkg_output_asdict(pout),
+            "recovery_data": bytes_to_hex(prec)
+        },
+    })
+
+    # --- Error Test Case 1: Invalid certificate length ---
+    invalid_cmsg2 = chilldkg.CoordinatorMsg2(cmsg2.cert[:-64])
+    error = expect_exception(
+        lambda: participant_finalize(pstates2[0], invalid_cmsg2),
+        ValueError
+    )
+    vectors["error_test_cases"].append({
+        "hostseckey": bytes_to_hex(hostseckeys[0]),
+        "params": params_asdict(params),
+        "random": bytes_to_hex(randoms[0]),
+        "pmsg1": pmsg1_asdict(pmsgs1[0]),
+        "cmsg1": cmsg1_asdict(cmsg1),
+        "pmsg2": pmsg2_asdict(pmsgs2[0]),
+        "csmg2": cmsg2_asdict(invalid_cmsg2),
+        "error": error,
+        "comment": "invalid certificate length"
+    })
+    # --- Error Test Case 2: invalid signature at index 2 ---
+    random_sig = bytes.fromhex("09C289578B96E6283AB13E4741FB489FC147FB1A5F446A314BA73C052131EFB04B83247A0BCEDF5205202AD64188B24B0BC5B51A17AEB218BD98DBE000C843B9")
+    assert len(random_sig) == 64
+    invalid_cmsg2 = chilldkg.CoordinatorMsg2(cmsg2.cert[:-64] + random_sig)
+    error = expect_exception(
+        lambda: participant_finalize(pstates2[0], invalid_cmsg2),
+        chilldkg.FaultyParticipantOrCoordinatorError
+    )
+    vectors["error_test_cases"].append({
+        "hostseckey": bytes_to_hex(hostseckeys[0]),
+        "params": params_asdict(params),
+        "random": bytes_to_hex(randoms[0]),
+        "pmsg1": pmsg1_asdict(pmsgs1[0]),
+        "cmsg1": cmsg1_asdict(cmsg1),
+        "pmsg2": pmsg2_asdict(pmsgs2[0]),
+        "csmg2": cmsg2_asdict(invalid_cmsg2),
+        "error": error,
+        "comment": "last signature (index 2) in the certificate is invalid"
+    })
+
     return vectors
 
 def generate_participant_investigate_vectors():
