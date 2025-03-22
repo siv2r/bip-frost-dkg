@@ -327,4 +327,124 @@ def generate_participant_finalize_vectors():
 
 def generate_participant_investigate_vectors():
     vectors = {"valid_test_cases": [], "error_test_cases": []}
+
+    hostseckeys = hex_list_to_bytes([
+        "ADE179B2C56CB75868D44B333C16C89CB00DFDE378AD79C84D0CCE856E4F9207",
+        "94BB10C1DE15783C3F3E49167A0951CACD2803F13AAC456C816E88AB4AC76330",
+        "F129C2D30096C972F14BB6764CC003C97119C0E32831EA4858F0DD0DFB780FAA"
+    ])
+    hostpubkeys = [chilldkg.hostpubkey_gen(sk) for sk in hostseckeys]
+    params = chilldkg.SessionParams(hostpubkeys, 2)
+    randoms = hex_list_to_bytes([
+        "42B53D62E27380D6F7096EDA1C28C57DDB89FCD4CE5B843EDAC220E165B5A7EC",
+        "FDE223740111491D5E60BEFB447A2D8C0B12D4B1CE1A0D6BF5A16CBA7E420153",
+        "E5CFC54DA8EE57BA97C389060D00BB840A9DDF6BF1E32AE3D3598373EF384EE7"
+    ])
+    assert len(randoms) == len(hostpubkeys)
+    pstates1 = []
+    pmsgs1 = []
+    for i in range(len(hostpubkeys)):
+        state, msg = participant_step1(hostseckeys[i], params, randoms[i])
+        pstates1.append(state)
+        pmsgs1.append(msg)
+    _, cmsg1 = chilldkg.coordinator_step1(pmsgs1, params)
+
+    # --- Error Test Case 1: Participant 1 sent an invalid secshare for participant 0 ---
+    invalid_pmsgs1 = copy.deepcopy(pmsgs1)
+    invalid_pmsgs1[1].enc_pmsg.enc_shares[0] += Scalar(17)
+    _, invalid_cmsg1 = chilldkg.coordinator_step1(invalid_pmsgs1, params)
+    try:
+        participant_step2(hostseckeys[0], pstates1[0], invalid_cmsg1)
+    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e:
+        cinv_msgs = chilldkg.coordinator_investigate(invalid_pmsgs1)
+        error = expect_exception(
+            lambda: participant_investigate(e, cinv_msgs[0]),
+            chilldkg.FaultyParticipantOrCoordinatorError
+        )
+    else:
+        assert False, "Expected exception"
+    vectors["error_test_cases"].append({
+        "hostseckey": bytes_to_hex(hostseckeys[0]),
+        "params": params_asdict(params),
+        "random": bytes_to_hex(randoms[0]),
+        "pmsg1": pmsg1_asdict(pmsgs1[0]),
+        "cmsg1": cmsg1_asdict(invalid_cmsg1),
+        "cinv_msg": cinv_msg_asdict(cinv_msgs[0]),
+        "error": error,
+        "comment": "participant 1 sent an invalid secshare for participant 0"
+    })
+    # --- Error Test Case 2: Coordinator tampers with participant 0's encrypted secshare ---
+    invalid_cmsg1 = copy.deepcopy(cmsg1)
+    invalid_cmsg1.enc_secshares[0] += Scalar(17)
+    try:
+        participant_step2(hostseckeys[0], pstates1[0], invalid_cmsg1)
+    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e:
+        cinv_msgs = chilldkg.coordinator_investigate(pmsgs1)
+        error = expect_exception(
+            lambda: participant_investigate(e, cinv_msgs[0]),
+            chilldkg.FaultyCoordinatorError
+        )
+    else:
+        assert False, "Expected exception"
+    vectors["error_test_cases"].append({
+        "hostseckey": bytes_to_hex(hostseckeys[0]),
+        "params": params_asdict(params),
+        "random": bytes_to_hex(randoms[0]),
+        "pmsg1": pmsg1_asdict(pmsgs1[0]),
+        "cmsg1": cmsg1_asdict(invalid_cmsg1),
+        "cinv_msg": cinv_msg_asdict(cinv_msgs[0]),
+        "error": error,
+        "comment": "coordinator tampers with participant 0's encrypted secshare"
+    })
+    # --- Error Test Case 3: Coordinator tampered with self-encrypted partial secshare ---
+    try:
+        # using invalid_cmsg1 to trigger the error
+        participant_step2(hostseckeys[0], pstates1[0], invalid_cmsg1)
+    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e:
+        cinv_msgs = chilldkg.coordinator_investigate(pmsgs1)
+        invalid_cinv_msg0 = copy.deepcopy(cinv_msgs[0])
+        invalid_cinv_msg0.enc_cinv.enc_partial_secshares[0] += Scalar(17) # random GE
+        error = expect_exception(
+            lambda: participant_investigate(e, invalid_cinv_msg0),
+            chilldkg.FaultyCoordinatorError
+        )
+    else:
+        assert False, "Expected exception"
+    vectors["error_test_cases"].append({
+        "hostseckey": bytes_to_hex(hostseckeys[0]),
+        "params": params_asdict(params),
+        "random": bytes_to_hex(randoms[0]),
+        "pmsg1": pmsg1_asdict(pmsgs1[0]),
+        "cmsg1": cmsg1_asdict(invalid_cmsg1),
+        "cinv_msg": cinv_msg_asdict(cinv_msgs[0]),
+        "error": error,
+        "comment": "coordinator tampered with self-encrypted partial secshare (participant 0)"
+    })
+    # --- Error Test Case 4: partial pubshares list in cinv_msg has an invalid value at index 1 ---
+    try:
+        # using invalid_cmsg1 to trigger the error
+        participant_step2(hostseckeys[0], pstates1[0], invalid_cmsg1)
+    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e:
+        cinv_msgs = chilldkg.coordinator_investigate(pmsgs1)
+        invalid_cinv_msg0 = copy.deepcopy(cinv_msgs[0])
+        invalid_cinv_msg0.enc_cinv.partial_pubshares[1] = GE.lift_x(
+            0x60C301C1EEC41AD16BF53F55F97B7B6EB842D9E2B8139712BA54695FF7116073
+        ) # random GE
+        error = expect_exception(
+            lambda: participant_investigate(e, invalid_cinv_msg0),
+            chilldkg.FaultyCoordinatorError
+        )
+    else:
+        assert False, "Expected exception"
+    vectors["error_test_cases"].append({
+        "hostseckey": bytes_to_hex(hostseckeys[0]),
+        "params": params_asdict(params),
+        "random": bytes_to_hex(randoms[0]),
+        "pmsg1": pmsg1_asdict(pmsgs1[0]),
+        "cmsg1": cmsg1_asdict(invalid_cmsg1),
+        "cinv_msg": cinv_msg_asdict(cinv_msgs[0]),
+        "error": error,
+        "comment": "partial pubshares list in cinv_msg has an invalid value at index 1"
+    })
+
     return vectors
