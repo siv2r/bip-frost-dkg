@@ -57,7 +57,7 @@ def generate_participant_step1_vectors():
         "params": params_asdict(params),
         "random": bytes_to_hex(random),
         "error": error,
-        "comment": "host secret key is doesn't match any hostpubkey"
+        "comment": "host secret key doesn't match any hostpubkey"
     })
     # --- Error test case 3: Invalid threshold ---
     invalid_params = chilldkg.SessionParams(hostpubkeys, 0)
@@ -446,5 +446,6 @@ def generate_participant_investigate_vectors():
         "error": error,
         "comment": "partial pubshares list in cinv_msg has an invalid value at index 1"
     })
+    # TODO: add runtime_error test case
 
     return vectors
