@@ -1,6 +1,8 @@
 import json
 from typing import NoReturn, List
 
+from secp256k1lab.secp256k1 import Scalar
+
 from chilldkg_ref.chilldkg import (
     SessionParams,
     ParticipantMsg1,
@@ -10,7 +12,10 @@ from chilldkg_ref.chilldkg import (
     DKGOutput,
     CoordinatorInvestigationMsg
 )
+from chilldkg_ref.vss import VSSCommitment
+import chilldkg_ref.simplpedpop as simplpedpop
 import chilldkg_ref.encpedpop as encpedpop
+import chilldkg_ref.chilldkg as chilldkg
 
 def bytes_to_hex(data: bytes) -> str:
     return data.hex().upper()
@@ -154,3 +159,25 @@ def params_from_dict(params: dict) -> SessionParams:
         hex_list_to_bytes(params["hostpubkeys"]),
         params["t"],
     )
+
+def pmsg1_from_dict(pmsg1: dict) -> dict:
+    pop = bytes.fromhex(pmsg1["simpl_pmsg"]["pop"])
+    com = bytes.fromhex(pmsg1["simpl_pmsg"]["com"])
+    pubnonce = bytes.fromhex(pmsg1["pubnonce"])
+    enc_shares = hex_list_to_bytes(pmsg1["enc_shares"])
+
+    t, remainder = divmod(len(com), 33)
+    if remainder != 0:
+        raise ValueError
+    simpl_pmsg = simplpedpop.ParticipantMsg(
+        VSSCommitment.from_bytes_and_t(com, t),
+        pop
+    )
+
+    enc_pmsg = encpedpop.ParticipantMsg (
+        simpl_pmsg,
+        pubnonce,
+        [Scalar.from_bytes(share) for share in enc_shares]
+    )
+
+    return chilldkg.ParticipantMsg1(enc_pmsg)
