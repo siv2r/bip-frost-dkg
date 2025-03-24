@@ -1,5 +1,16 @@
 import copy
-from .util import *
+from .util import (
+    bytes_to_hex,
+    hex_list_to_bytes,
+    expect_exception,
+    params_asdict,
+    pmsg1_asdict,
+    pmsg2_asdict,
+    cmsg1_asdict,
+    cmsg2_asdict,
+    cinv_msg_asdict,
+    dkg_output_asdict
+)
 
 from chilldkg_ref.chilldkg import (
     participant_step1,
@@ -153,7 +164,7 @@ def generate_coordinator_finalize_vectors():
     })
     # --- Error Test Case 2: participant at index 1 sent an invalid signature ---
     invalid_pmsgs2 = copy.deepcopy(pmsgs2)
-    invalid_pmsgs2[1] = ParticipantMsg2(bytes.fromhex("09C289578B96E6283AB13E4741FB489FC147FB1A5F446A314BA73C052131EFB04B83247A0BCEDF5205202AD64188B24B0BC5B51A17AEB218BD98DBE000C843B9")) # random sig
+    invalid_pmsgs2[1] = chilldkg.ParticipantMsg2(bytes.fromhex("09C289578B96E6283AB13E4741FB489FC147FB1A5F446A314BA73C052131EFB04B83247A0BCEDF5205202AD64188B24B0BC5B51A17AEB218BD98DBE000C843B9")) # random sig
     error = expect_exception(
         lambda: coordinator_finalize(cstate, invalid_pmsgs2),
         chilldkg.FaultyParticipantError

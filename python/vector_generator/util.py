@@ -8,7 +8,6 @@ from chilldkg_ref.chilldkg import (
     CoordinatorMsg1,
     CoordinatorMsg2,
     DKGOutput,
-    RecoveryData,
     CoordinatorInvestigationMsg
 )
 import chilldkg_ref.encpedpop as encpedpop
@@ -139,3 +138,13 @@ def cinv_msg_asdict(cinv_msg: CoordinatorInvestigationMsg) -> dict:
         "enc_partial_secshares": bytes_list_to_hex(enc_partial_secshares),
         "partial_pubshares": bytes_list_to_hex(partial_pubshares)
     }
+
+# util functions for running the JSON test vectosr below
+
+def assert_raises(try_fn, expected_error: dict):
+    try:
+        try_fn()
+    except Exception as e:
+        assert exception_asdict(e) == expected_error
+    else:
+        raise AssertionError("Expected exception")
