@@ -1,7 +1,18 @@
 import copy
 
-from .util import *
 from secp256k1lab.secp256k1 import GE, Scalar
+from .util import (
+    bytes_to_hex,
+    hex_list_to_bytes,
+    expect_exception,
+    params_asdict,
+    pmsg1_asdict,
+    pmsg2_asdict,
+    cmsg1_asdict,
+    cmsg2_asdict,
+    cinv_msg_asdict,
+    dkg_output_asdict
+)
 
 from chilldkg_ref.chilldkg import (
     participant_step1,
@@ -355,10 +366,13 @@ def generate_participant_investigate_vectors():
     _, invalid_cmsg1 = chilldkg.coordinator_step1(invalid_pmsgs1, params)
     try:
         participant_step2(hostseckeys[0], pstates1[0], invalid_cmsg1)
-    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e:
+    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e: # noqa: F841
+        # 'e' is referenced in the lambda function below.
+        # Python clears the exception variable after the except block, so ruff
+        # mistakenly flags it as unused/undefined.
         cinv_msgs = chilldkg.coordinator_investigate(invalid_pmsgs1)
         error = expect_exception(
-            lambda: participant_investigate(e, cinv_msgs[0]),
+            lambda: participant_investigate(e, cinv_msgs[0]), # noqa: F821
             chilldkg.FaultyParticipantOrCoordinatorError
         )
     else:
@@ -378,10 +392,10 @@ def generate_participant_investigate_vectors():
     invalid_cmsg1.enc_secshares[0] += Scalar(17)
     try:
         participant_step2(hostseckeys[0], pstates1[0], invalid_cmsg1)
-    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e:
+    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e: # noqa: F841
         cinv_msgs = chilldkg.coordinator_investigate(pmsgs1)
         error = expect_exception(
-            lambda: participant_investigate(e, cinv_msgs[0]),
+            lambda: participant_investigate(e, cinv_msgs[0]), # noqa: F821
             chilldkg.FaultyCoordinatorError
         )
     else:
@@ -400,12 +414,12 @@ def generate_participant_investigate_vectors():
     try:
         # using invalid_cmsg1 to trigger the error
         participant_step2(hostseckeys[0], pstates1[0], invalid_cmsg1)
-    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e:
+    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e: # noqa: F841
         cinv_msgs = chilldkg.coordinator_investigate(pmsgs1)
         invalid_cinv_msg0 = copy.deepcopy(cinv_msgs[0])
         invalid_cinv_msg0.enc_cinv.enc_partial_secshares[0] += Scalar(17) # random GE
         error = expect_exception(
-            lambda: participant_investigate(e, invalid_cinv_msg0),
+            lambda: participant_investigate(e, invalid_cinv_msg0), # noqa: F821
             chilldkg.FaultyCoordinatorError
         )
     else:
@@ -424,14 +438,14 @@ def generate_participant_investigate_vectors():
     try:
         # using invalid_cmsg1 to trigger the error
         participant_step2(hostseckeys[0], pstates1[0], invalid_cmsg1)
-    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e:
+    except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e: # noqa: F841
         cinv_msgs = chilldkg.coordinator_investigate(pmsgs1)
         invalid_cinv_msg0 = copy.deepcopy(cinv_msgs[0])
         invalid_cinv_msg0.enc_cinv.partial_pubshares[1] = GE.lift_x(
             0x60C301C1EEC41AD16BF53F55F97B7B6EB842D9E2B8139712BA54695FF7116073
         ) # random GE
         error = expect_exception(
-            lambda: participant_investigate(e, invalid_cinv_msg0),
+            lambda: participant_investigate(e, invalid_cinv_msg0), # noqa: F821
             chilldkg.FaultyCoordinatorError
         )
     else:

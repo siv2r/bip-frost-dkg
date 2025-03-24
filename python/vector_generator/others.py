@@ -1,6 +1,12 @@
 from secp256k1lab.secp256k1 import Scalar
 from secp256k1lab.util import bytes_from_int
-from .util import *
+from .util import (
+    bytes_to_hex,
+    hex_list_to_bytes,
+    expect_exception,
+    params_asdict,
+    dkg_output_asdict
+)
 
 from chilldkg_ref.chilldkg import (
     hostpubkey_gen,
