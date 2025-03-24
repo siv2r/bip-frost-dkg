@@ -23,7 +23,10 @@ import chilldkg_ref.simplpedpop as simplpedpop
 import chilldkg_ref.encpedpop as encpedpop
 import chilldkg_ref.chilldkg as chilldkg
 
-from vector_generator.util import assert_raises
+from vector_generator.util import (
+    assert_raises,
+    params_from_dict
+)
 from example import simulate_chilldkg_full as simulate_chilldkg_full_example
 
 
@@ -374,8 +377,8 @@ def test_hostpubkey_gen_vectors():
 
     for test_case in valid_test_cases:
         hostseckey = bytes.fromhex(test_case["hostseckey"])
-        expected = bytes.fromhex(test_case["expected_hostpubkey"])
-        assert expected == chilldkg.hostpubkey_gen(hostseckey)
+        expected_hostpubkey = bytes.fromhex(test_case["expected_hostpubkey"])
+        assert expected_hostpubkey == chilldkg.hostpubkey_gen(hostseckey)
 
     for test_case in error_test_cases:
         hostseckey = bytes.fromhex(test_case["hostseckey"])
@@ -394,15 +397,15 @@ def test_params_id_vectors():
     error_test_cases = test_data["error_test_cases"]
 
     for test_case in valid_test_cases:
-        hostseckey = bytes.fromhex(test_case["hostseckey"])
-        expected = bytes.fromhex(test_case["expected_hostpubkey"])
-        assert expected == chilldkg.hostpubkey_gen(hostseckey)
+        params = params_from_dict(test_case["params"])
+        expected_id = bytes.fromhex(test_case["expected_params_id"])
+        assert expected_id == chilldkg.params_id(params)
 
     for test_case in error_test_cases:
-        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        params = params_from_dict(test_case["params"])
         expected_error = test_case["error"]
         assert_raises (
-            lambda: chilldkg.hostpubkey_gen(hostseckey),
+            lambda: chilldkg.params_id(params),
             expected_error
         )
 
@@ -418,4 +421,4 @@ def test_params_id_vectors():
 #     test_correctness(t, n, simulate_chilldkg, recovery=True, investigation=True)
 #     test_correctness(t, n, simulate_chilldkg_full, recovery=True)
 test_hostpubkey_gen_vectors()
-# test_params_id_vectors()
+test_params_id_vectors()

@@ -148,3 +148,9 @@ def assert_raises(try_fn, expected_error: dict):
         assert expected_error == exception_asdict(e)
     else:
         raise AssertionError("Expected exception")
+
+def params_from_dict(params: dict) -> SessionParams:
+    return SessionParams(
+        hex_list_to_bytes(params["hostpubkeys"]),
+        params["t"],
+    )
