@@ -25,7 +25,9 @@ import chilldkg_ref.chilldkg as chilldkg
 
 from vector_generator.util import (
     assert_raises,
-    params_from_dict
+    params_from_dict,
+    pmsg1_from_dict,
+    pmsg1_asdict
 )
 from example import simulate_chilldkg_full as simulate_chilldkg_full_example
 
@@ -398,6 +400,50 @@ def test_params_id_vectors():
             expected_error
         )
 
+def test_participant_step1_vectors():
+    input_file = Path("vectors/participant_step1_vectors.json")
+    with open(input_file) as f:
+        test_data = json.load(f)
+
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
+
+    for test_case in valid_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        params = params_from_dict(test_case["params"])
+        random = bytes.fromhex(test_case["random"])
+        expected_pmsg1 = test_case["expected_pmsg1"]
+        _, pmsg1 = chilldkg.participant_step1(hostseckey, params, random)
+        assert expected_pmsg1 == pmsg1_asdict(pmsg1)
+
+    for test_case in error_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        params = params_from_dict(test_case["params"])
+        random = bytes.fromhex(test_case["random"])
+        expected_error = test_case["error"]
+        assert_raises (
+            lambda: chilldkg.participant_step1(hostseckey, params, random),
+            expected_error
+        )
+
+def test_participant_step2_vectors():
+    pass
+
+def test_participant_finalize_vectors():
+    pass
+
+def test_participant_investigate_vectors():
+    pass
+
+def test_coordinator_step1_vectors():
+    pass
+
+def test_coordinator_finalize_vectors():
+    pass
+
+def test_coordinator_investigate_vectors():
+    pass
+
 # test_chilldkg_params_validate()
 # test_vss_correctness()
 # test_recover_secret()
@@ -411,3 +457,10 @@ def test_params_id_vectors():
 #     test_correctness(t, n, simulate_chilldkg_full, recovery=True)
 test_hostpubkey_gen_vectors()
 test_params_id_vectors()
+test_participant_step1_vectors()
+test_participant_step2_vectors()
+test_participant_finalize_vectors()
+test_participant_investigate_vectors()
+test_coordinator_step1_vectors()
+test_coordinator_finalize_vectors()
+test_coordinator_investigate_vectors()
