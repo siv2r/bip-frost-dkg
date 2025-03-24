@@ -6,6 +6,8 @@ from itertools import combinations
 from random import randint
 from typing import Tuple, List, Optional
 from secrets import token_bytes as random_bytes
+from pathlib import Path
+import json
 
 from secp256k1lab.secp256k1 import GE, G, Scalar
 from secp256k1lab.keys import pubkey_gen_plain
@@ -21,6 +23,7 @@ import chilldkg_ref.simplpedpop as simplpedpop
 import chilldkg_ref.encpedpop as encpedpop
 import chilldkg_ref.chilldkg as chilldkg
 
+from vector_generator.util import assert_raises
 from example import simulate_chilldkg_full as simulate_chilldkg_full_example
 
 
@@ -350,15 +353,58 @@ def test_correctness(t, n, simulate_dkg, recovery=False, investigation=False):
             assert threshold_pubkey == dkg_outputs[i][1]
             assert pubshares == dkg_outputs[i][2]
 
+def test_hostpubkey_gen_vectors():
+    input_file = Path("vectors/hostpubkey_gen_vectors.json")
+    with open(input_file) as f:
+        test_data = json.load(f)
 
-test_chilldkg_params_validate()
-test_vss_correctness()
-test_recover_secret()
-for t, n in [(1, 1), (1, 2), (2, 2), (2, 3), (2, 5)]:
-    test_correctness(t, n, simulate_simplpedpop)
-    test_correctness(t, n, simulate_simplpedpop, investigation=True)
-    test_correctness(t, n, simulate_encpedpop)
-    test_correctness(t, n, simulate_encpedpop, investigation=True)
-    test_correctness(t, n, simulate_chilldkg, recovery=True)
-    test_correctness(t, n, simulate_chilldkg, recovery=True, investigation=True)
-    test_correctness(t, n, simulate_chilldkg_full, recovery=True)
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
+
+    for test_case in valid_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        expected = bytes.fromhex(test_case["expected_hostpubkey"])
+        assert expected == chilldkg.hostpubkey_gen(hostseckey)
+
+    for test_case in error_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        expected_error = test_case["error"]
+        assert_raises (
+            lambda: chilldkg.hostpubkey_gen(hostseckey),
+            expected_error
+        )
+
+def test_params_id_vectors():
+    input_file = Path("vectors/params_id_vectors.json")
+    with open(input_file) as f:
+        test_data = json.load(f)
+
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
+
+    for test_case in valid_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        expected = bytes.fromhex(test_case["expected_hostpubkey"])
+        assert expected == chilldkg.hostpubkey_gen(hostseckey)
+
+    for test_case in error_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        expected_error = test_case["error"]
+        assert_raises (
+            lambda: chilldkg.hostpubkey_gen(hostseckey),
+            expected_error
+        )
+
+# test_chilldkg_params_validate()
+# test_vss_correctness()
+# test_recover_secret()
+# for t, n in [(1, 1), (1, 2), (2, 2), (2, 3), (2, 5)]:
+#     test_correctness(t, n, simulate_simplpedpop)
+#     test_correctness(t, n, simulate_simplpedpop, investigation=True)
+#     test_correctness(t, n, simulate_encpedpop)
+#     test_correctness(t, n, simulate_encpedpop, investigation=True)
+#     test_correctness(t, n, simulate_chilldkg, recovery=True)
+#     test_correctness(t, n, simulate_chilldkg, recovery=True, investigation=True)
+#     test_correctness(t, n, simulate_chilldkg_full, recovery=True)
+test_hostpubkey_gen_vectors()
+# test_params_id_vectors()
