@@ -145,6 +145,6 @@ def assert_raises(try_fn, expected_error: dict):
     try:
         try_fn()
     except Exception as e:
-        assert exception_asdict(e) == expected_error
+        assert expected_error == exception_asdict(e)
     else:
         raise AssertionError("Expected exception")

@@ -82,7 +82,7 @@ def certeq_message(x: bytes, idx: int) -> bytes:
 
 def certeq_participant_step(hostseckey: bytes, idx: int, x: bytes) -> bytes:
     msg = certeq_message(x, idx)
-    return schnorr_sign(msg, hostseckey, aux_rand=random_bytes(32))
+    return schnorr_sign(msg, hostseckey, aux_rand=b"\x00"*32)
 
 
 def certeq_cert_len(n: int) -> int:
