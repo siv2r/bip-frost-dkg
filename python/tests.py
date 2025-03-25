@@ -27,6 +27,7 @@ from vector_generator.util import (
     assert_raises,
     bytes_to_hex,
     params_from_dict,
+    params_asdict,
     pmsg1_from_dict,
     pmsg1_asdict,
     pmsg2_from_dict,
@@ -592,6 +593,32 @@ def test_coordinator_finalize_vectors():
 def test_coordinator_investigate_vectors():
     pass
 
+def test_recover_vectors():
+    input_file = Path("vectors/recover_vectors.json")
+    with open(input_file) as f:
+        test_data = json.load(f)
+
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
+
+    for test_case in valid_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"]) if test_case["hostseckey"] else None
+        recovery_data = bytes.fromhex(test_case["recovery_data"])
+        out, params = chilldkg.recover(hostseckey, recovery_data)
+        expected_out = test_case["expected_output"]["dkg_output"]
+        expected_params = test_case["expected_output"]["params"]
+        assert expected_out == dkg_output_asdict(out)
+        assert expected_params == params_asdict(params)
+
+    for test_case in error_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"]) if test_case["hostseckey"] else None
+        recovery_data = bytes.fromhex(test_case["recovery_data"])
+        expected_error = test_case["error"]
+        assert_raises (
+            lambda: chilldkg.recover(hostseckey, recovery_data),
+            expected_error
+        )
+
 # test_chilldkg_params_validate()
 # test_vss_correctness()
 # test_recover_secret()
@@ -612,3 +639,4 @@ test_participant_investigate_vectors()
 test_coordinator_step1_vectors()
 test_coordinator_finalize_vectors()
 test_coordinator_investigate_vectors()
+test_recover_vectors()
