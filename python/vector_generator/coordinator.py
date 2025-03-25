@@ -71,7 +71,7 @@ def generate_coordinator_step1_vectors():
     )
     vectors["error_test_cases"].append({
         "pmsgs1": [pmsg1_asdict(m) for m in pmsgs1],
-        "params": params_asdict(invalid_params),
+        "params": params_asdict(duplicate_params),
         "error": error,
         "comment": "hostpubkeys list contains duplicate values"
     })
@@ -98,7 +98,7 @@ def generate_coordinator_step1_vectors():
     )
     vectors["error_test_cases"].append({
         "pmsgs1": [pmsg1_asdict(m) for m in invalid_pmsgs1],
-        "params": params_asdict(invalid_params),
+        "params": params_asdict(params),
         "error": error,
         "comment": "participant (index 1) message has an enc_shares list of invalid length"
     })

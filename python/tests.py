@@ -27,7 +27,11 @@ from vector_generator.util import (
     assert_raises,
     params_from_dict,
     pmsg1_from_dict,
-    pmsg1_asdict
+    pmsg1_asdict,
+    pmsg2_from_dict,
+    pmsg2_asdict,
+    cmsg1_from_dict,
+    cmsg1_asdict,
 )
 from example import simulate_chilldkg_full as simulate_chilldkg_full_example
 
@@ -427,7 +431,42 @@ def test_participant_step1_vectors():
         )
 
 def test_participant_step2_vectors():
-    pass
+    input_file = Path("vectors/participant_step2_vectors.json")
+    with open(input_file) as f:
+        test_data = json.load(f)
+
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
+
+    for test_case in valid_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        params = params_from_dict(test_case["params"])
+        random = bytes.fromhex(test_case["random"])
+
+        expected_pmsg1 = test_case["pmsg1"]
+        state1, pmsg1 = chilldkg.participant_step1(hostseckey, params, random)
+        assert expected_pmsg1 == pmsg1_asdict(pmsg1) # safety check
+
+        cmsg1 = cmsg1_from_dict(test_case["cmsg1"])
+        expected_pmsg2 = test_case["expected_pmsg2"]
+        _, pmsg2 = chilldkg.participant_step2(hostseckey, state1, cmsg1)
+        assert expected_pmsg2 == pmsg2_asdict(pmsg2)
+
+    for test_case in error_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        params = params_from_dict(test_case["params"])
+        random = bytes.fromhex(test_case["random"])
+
+        expected_pmsg1 = test_case["pmsg1"]
+        state1, pmsg1 = chilldkg.participant_step1(hostseckey, params, random)
+        assert expected_pmsg1 == pmsg1_asdict(pmsg1) # additional check
+
+        cmsg1 = cmsg1_from_dict(test_case["cmsg1"])
+        expected_error = test_case["error"]
+        assert_raises (
+            lambda: chilldkg.participant_step2(hostseckey, state1, cmsg1),
+            expected_error
+        )
 
 def test_participant_finalize_vectors():
     pass
@@ -436,7 +475,28 @@ def test_participant_investigate_vectors():
     pass
 
 def test_coordinator_step1_vectors():
-    pass
+    input_file = Path("vectors/coordinator_step1_vectors.json")
+    with open(input_file) as f:
+        test_data = json.load(f)
+
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
+
+    for test_case in valid_test_cases:
+        pmsgs1 = [pmsg1_from_dict(m) for m in test_case["pmsgs1"]]
+        params = params_from_dict(test_case["params"])
+        expected_cmsg1 = test_case["expected_cmsg1"]
+        _, cmsg1 = chilldkg.coordinator_step1(pmsgs1, params)
+        assert expected_cmsg1 == cmsg1_asdict(cmsg1)
+
+    for test_case in error_test_cases:
+        pmsgs1 = [pmsg1_from_dict(m) for m in test_case["pmsgs1"]]
+        params = params_from_dict(test_case["params"])
+        expected_error = test_case["error"]
+        assert_raises (
+            lambda: chilldkg.coordinator_step1(pmsgs1, params),
+            expected_error
+        )
 
 def test_coordinator_finalize_vectors():
     pass
