@@ -1,7 +1,7 @@
 import json
 from typing import NoReturn, List
 
-from secp256k1lab.secp256k1 import Scalar
+from secp256k1lab.secp256k1 import Scalar, GE
 
 from chilldkg_ref.chilldkg import (
     SessionParams,
@@ -160,7 +160,7 @@ def params_from_dict(params: dict) -> SessionParams:
         params["t"],
     )
 
-def pmsg1_from_dict(pmsg1: dict) -> dict:
+def pmsg1_from_dict(pmsg1: dict) -> ParticipantMsg1:
     pop = bytes.fromhex(pmsg1["simpl_pmsg"]["pop"])
     com = bytes.fromhex(pmsg1["simpl_pmsg"]["com"])
     pubnonce = bytes.fromhex(pmsg1["pubnonce"])
@@ -181,3 +181,27 @@ def pmsg1_from_dict(pmsg1: dict) -> dict:
     )
 
     return chilldkg.ParticipantMsg1(enc_pmsg)
+
+def pmsg2_from_dict(pmsg2: dict) -> ParticipantMsg2:
+    sig = bytes.fromhex(pmsg2["sig"])
+    return chilldkg.ParticipantMsg2(sig)
+
+def cmsg1_from_dict(cmsg1: dict) -> CoordinatorMsg1:
+    coms_to_secrets = [
+        GE.from_bytes_with_infinity(b)
+        for b in hex_list_to_bytes(cmsg1["simpl_cmsg"]["coms_to_secrets"])
+    ]
+    sum_coms_to_nonconst_terms = [
+        GE.from_bytes_with_infinity(b)
+        for b in hex_list_to_bytes(cmsg1["simpl_cmsg"]["sum_coms_to_nonconst_terms"])
+    ]
+    pops = hex_list_to_bytes(cmsg1["simpl_cmsg"]["pops"])
+    pubnonces = hex_list_to_bytes(cmsg1["pubnonces"])
+    enc_secshares = [
+        Scalar.from_bytes(share)
+        for share in hex_list_to_bytes(cmsg1["enc_secshares"])
+    ]
+
+    simpl_cmsg = simplpedpop.CoordinatorMsg(coms_to_secrets, sum_coms_to_nonconst_terms, pops)
+    enc_cmsg = encpedpop.CoordinatorMsg(simpl_cmsg, pubnonces)
+    return chilldkg.CoordinatorMsg1(enc_cmsg, enc_secshares)
