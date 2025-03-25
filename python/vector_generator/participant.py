@@ -290,7 +290,7 @@ def generate_participant_finalize_vectors():
         "pmsg1": pmsg1_asdict(pmsgs1[0]),
         "cmsg1": cmsg1_asdict(cmsg1),
         "pmsg2": pmsg2_asdict(pmsgs2[0]),
-        "csmg2": cmsg2_asdict(cmsg2),
+        "cmsg2": cmsg2_asdict(cmsg2),
         "expected_output": {
             "dkg_output": dkg_output_asdict(pout),
             "recovery_data": bytes_to_hex(prec)
@@ -310,7 +310,7 @@ def generate_participant_finalize_vectors():
         "pmsg1": pmsg1_asdict(pmsgs1[0]),
         "cmsg1": cmsg1_asdict(cmsg1),
         "pmsg2": pmsg2_asdict(pmsgs2[0]),
-        "csmg2": cmsg2_asdict(invalid_cmsg2),
+        "cmsg2": cmsg2_asdict(invalid_cmsg2),
         "error": error,
         "comment": "invalid certificate length"
     })
@@ -329,7 +329,7 @@ def generate_participant_finalize_vectors():
         "pmsg1": pmsg1_asdict(pmsgs1[0]),
         "cmsg1": cmsg1_asdict(cmsg1),
         "pmsg2": pmsg2_asdict(pmsgs2[0]),
-        "csmg2": cmsg2_asdict(invalid_cmsg2),
+        "cmsg2": cmsg2_asdict(invalid_cmsg2),
         "error": error,
         "comment": "last signature (index 2) in the certificate is invalid"
     })

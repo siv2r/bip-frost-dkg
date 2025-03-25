@@ -25,6 +25,7 @@ import chilldkg_ref.chilldkg as chilldkg
 
 from vector_generator.util import (
     assert_raises,
+    bytes_to_hex,
     params_from_dict,
     pmsg1_from_dict,
     pmsg1_asdict,
@@ -32,6 +33,9 @@ from vector_generator.util import (
     pmsg2_asdict,
     cmsg1_from_dict,
     cmsg1_asdict,
+    cmsg2_from_dict,
+    cmsg2_asdict,
+    dkg_output_asdict,
 )
 from example import simulate_chilldkg_full as simulate_chilldkg_full_example
 
@@ -480,7 +484,54 @@ def test_participant_step2_vectors():
         )
 
 def test_participant_finalize_vectors():
-    pass
+    input_file = Path("vectors/participant_finalize_vectors.json")
+    with open(input_file) as f:
+        test_data = json.load(f)
+
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
+
+    for test_case in valid_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        params = params_from_dict(test_case["params"])
+        random = bytes.fromhex(test_case["random"])
+
+        expected_pmsg1 = test_case["pmsg1"]
+        state1, pmsg1 = chilldkg.participant_step1(hostseckey, params, random)
+        assert expected_pmsg1 == pmsg1_asdict(pmsg1) # safety check
+
+        cmsg1 = cmsg1_from_dict(test_case["cmsg1"])
+        state2, pmsg2 = chilldkg.participant_step2(hostseckey, state1, cmsg1)
+        expected_pmsg2 = test_case["pmsg2"]
+        assert expected_pmsg2 == pmsg2_asdict(pmsg2)
+
+        cmsg2 = cmsg2_from_dict(test_case["cmsg2"])
+        pout, prec = chilldkg.participant_finalize(state2, cmsg2)
+        expected_pout = test_case["expected_output"]["dkg_output"]
+        expected_prec = test_case["expected_output"]["recovery_data"]
+        assert expected_pout == dkg_output_asdict(pout)
+        assert expected_prec == bytes_to_hex(prec)
+
+    for test_case in error_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        params = params_from_dict(test_case["params"])
+        random = bytes.fromhex(test_case["random"])
+
+        expected_pmsg1 = test_case["pmsg1"]
+        state1, pmsg1 = chilldkg.participant_step1(hostseckey, params, random)
+        assert expected_pmsg1 == pmsg1_asdict(pmsg1) # safety check
+
+        cmsg1 = cmsg1_from_dict(test_case["cmsg1"])
+        state2, pmsg2 = chilldkg.participant_step2(hostseckey, state1, cmsg1)
+        expected_pmsg2 = test_case["pmsg2"]
+        assert expected_pmsg2 == pmsg2_asdict(pmsg2)
+
+        cmsg2 = cmsg2_from_dict(test_case["cmsg2"])
+        expected_error = test_case["error"]
+        assert_raises (
+            lambda: chilldkg.participant_finalize(state2, cmsg2),
+            expected_error
+        )
 
 def test_participant_investigate_vectors():
     pass
@@ -510,7 +561,44 @@ def test_coordinator_step1_vectors():
         )
 
 def test_coordinator_finalize_vectors():
-    pass
+    input_file = Path("vectors/coordinator_finalize_vectors.json")
+    with open(input_file) as f:
+        test_data = json.load(f)
+
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
+
+    for test_case in valid_test_cases:
+        pmsgs1 = [pmsg1_from_dict(m) for m in test_case["pmsgs1"]]
+        params = params_from_dict(test_case["params"])
+
+        state, cmsg1 = chilldkg.coordinator_step1(pmsgs1, params)
+        expected_cmsg1 = test_case["cmsg1"]
+        assert expected_cmsg1 == cmsg1_asdict(cmsg1) # additional check
+
+        pmsgs2 = [pmsg2_from_dict(m) for m in test_case["pmsgs2"]]
+        cmsg2, cout, crec = chilldkg.coordinator_finalize(state, pmsgs2)
+        expected_cmsg2 = test_case["expected_output"]["cmsg2"]
+        expected_cout = test_case["expected_output"]["dkg_output"]
+        expected_crec = test_case["expected_output"]["recovery_data"]
+        assert expected_cmsg2 == cmsg2_asdict(cmsg2)
+        assert expected_cout == dkg_output_asdict(cout)
+        assert expected_crec == bytes_to_hex(crec)
+
+    for test_case in error_test_cases:
+        pmsgs1 = [pmsg1_from_dict(m) for m in test_case["pmsgs1"]]
+        params = params_from_dict(test_case["params"])
+
+        state, cmsg1 = chilldkg.coordinator_step1(pmsgs1, params)
+        expected_cmsg1 = test_case["cmsg1"]
+        assert expected_cmsg1 == cmsg1_asdict(cmsg1) # additional check
+
+        pmsgs2 = [pmsg2_from_dict(m) for m in test_case["pmsgs2"]]
+        expected_error = test_case["error"]
+        assert_raises (
+            lambda: chilldkg.coordinator_finalize(state, pmsgs2),
+            expected_error
+        )
 
 def test_coordinator_investigate_vectors():
     pass
