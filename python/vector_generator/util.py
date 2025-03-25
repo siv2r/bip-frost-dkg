@@ -205,3 +205,7 @@ def cmsg1_from_dict(cmsg1: dict) -> CoordinatorMsg1:
     simpl_cmsg = simplpedpop.CoordinatorMsg(coms_to_secrets, sum_coms_to_nonconst_terms, pops)
     enc_cmsg = encpedpop.CoordinatorMsg(simpl_cmsg, pubnonces)
     return chilldkg.CoordinatorMsg1(enc_cmsg, enc_secshares)
+
+def cmsg2_from_dict(cmsg2: dict) -> CoordinatorMsg2:
+    cert = bytes.fromhex(cmsg2["cert"])
+    return chilldkg.CoordinatorMsg2(cert)
