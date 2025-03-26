@@ -25,6 +25,8 @@ import chilldkg_ref.chilldkg as chilldkg
 
 from vector_generator.util import (
     assert_raises,
+    expect_exception,
+    exception_asdict,
     bytes_to_hex,
     params_from_dict,
     params_asdict,
@@ -36,6 +38,8 @@ from vector_generator.util import (
     cmsg1_asdict,
     cmsg2_from_dict,
     cmsg2_asdict,
+    cinv_msg_asdict,
+    cinv_msg_from_dict,
     dkg_output_asdict,
 )
 from example import simulate_chilldkg_full as simulate_chilldkg_full_example
@@ -535,7 +539,38 @@ def test_participant_finalize_vectors():
         )
 
 def test_participant_investigate_vectors():
-    pass
+    input_file = Path("vectors/participant_investigate_vectors.json")
+    with open(input_file) as f:
+        test_data = json.load(f)
+
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
+
+    assert len(valid_test_cases) == 0
+
+    for test_case in error_test_cases:
+        hostseckey = bytes.fromhex(test_case["hostseckey"])
+        params = params_from_dict(test_case["params"])
+        random = bytes.fromhex(test_case["random"])
+
+        expected_pmsg1 = test_case["pmsg1"]
+        state1, pmsg1 = chilldkg.participant_step1(hostseckey, params, random)
+        assert expected_pmsg1 == pmsg1_asdict(pmsg1) # safety check
+
+        cmsg1 = cmsg1_from_dict(test_case["cmsg1"])
+        cinv_msg = cinv_msg_from_dict(test_case["cinv_msg"])
+        expected_error = test_case["error"]
+        try:
+            chilldkg.participant_step2(hostseckey, state1, cmsg1)
+        except UnknownFaultyParticipantOrCoordinatorError as e:
+            assert_raises(
+                lambda: chilldkg.participant_investigate(e, cinv_msg),
+                expected_error
+            )
+        except Exception as e:
+            raise AssertionError(f"Wrong exception raised: {type(e).__name__}")
+        else:
+            raise AssertionError("Expected exception")
 
 def test_coordinator_step1_vectors():
     input_file = Path("vectors/coordinator_step1_vectors.json")
@@ -602,7 +637,20 @@ def test_coordinator_finalize_vectors():
         )
 
 def test_coordinator_investigate_vectors():
-    pass
+    input_file = Path("vectors/coordinator_investigate_vectors.json")
+    with open(input_file) as f:
+        test_data = json.load(f)
+
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
+
+    for test_case in valid_test_cases:
+        pmsgs1 = [pmsg1_from_dict(m) for m in test_case["pmsgs1"]]
+        cinv_msgs = chilldkg.coordinator_investigate(pmsgs1)
+        expected_cinv_msgs = test_case["expected_cinv_msgs"]
+        assert expected_cinv_msgs == [cinv_msg_asdict(m) for m in cinv_msgs]
+
+    assert len(error_test_cases) == 0
 
 def test_recover_vectors():
     input_file = Path("vectors/recover_vectors.json")

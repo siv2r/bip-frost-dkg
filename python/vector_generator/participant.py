@@ -417,7 +417,7 @@ def generate_participant_investigate_vectors():
     except chilldkg.UnknownFaultyParticipantOrCoordinatorError as e: # noqa: F841
         cinv_msgs = chilldkg.coordinator_investigate(pmsgs1)
         invalid_cinv_msg0 = copy.deepcopy(cinv_msgs[0])
-        invalid_cinv_msg0.enc_cinv.enc_partial_secshares[0] += Scalar(17) # random GE
+        invalid_cinv_msg0.enc_cinv.enc_partial_secshares[0] += Scalar(17) # invalid share
         error = expect_exception(
             lambda: participant_investigate(e, invalid_cinv_msg0), # noqa: F821
             chilldkg.FaultyCoordinatorError
@@ -430,7 +430,7 @@ def generate_participant_investigate_vectors():
         "random": bytes_to_hex(randoms[0]),
         "pmsg1": pmsg1_asdict(pmsgs1[0]),
         "cmsg1": cmsg1_asdict(invalid_cmsg1),
-        "cinv_msg": cinv_msg_asdict(cinv_msgs[0]),
+        "cinv_msg": cinv_msg_asdict(invalid_cinv_msg0),
         "error": error,
         "comment": "coordinator tampered with self-encrypted partial secshare (participant 0)"
     })
@@ -456,7 +456,7 @@ def generate_participant_investigate_vectors():
         "random": bytes_to_hex(randoms[0]),
         "pmsg1": pmsg1_asdict(pmsgs1[0]),
         "cmsg1": cmsg1_asdict(invalid_cmsg1),
-        "cinv_msg": cinv_msg_asdict(cinv_msgs[0]),
+        "cinv_msg": cinv_msg_asdict(invalid_cinv_msg0),
         "error": error,
         "comment": "partial pubshares list in cinv_msg has an invalid value at index 1"
     })

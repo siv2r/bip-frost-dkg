@@ -209,3 +209,15 @@ def cmsg1_from_dict(cmsg1: dict) -> CoordinatorMsg1:
 def cmsg2_from_dict(cmsg2: dict) -> CoordinatorMsg2:
     cert = bytes.fromhex(cmsg2["cert"])
     return chilldkg.CoordinatorMsg2(cert)
+
+def cinv_msg_from_dict(cinv_msg: dict) -> CoordinatorInvestigationMsg:
+    enc_partial_secshares = [
+        Scalar.from_bytes(share)
+        for share in hex_list_to_bytes(cinv_msg["enc_partial_secshares"])
+    ]
+    partial_pubshares = [
+        GE.from_bytes_with_infinity(b)
+        for b in hex_list_to_bytes(cinv_msg["partial_pubshares"])
+    ]
+    enc_cinv = encpedpop.CoordinatorInvestigationMsg(enc_partial_secshares, partial_pubshares)
+    return chilldkg.CoordinatorInvestigationMsg(enc_cinv)
