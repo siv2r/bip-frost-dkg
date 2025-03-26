@@ -39,14 +39,6 @@
                     ]
                 }
             ],
-            "params": {
-                "hostpubkeys": [
-                    "03AED316469060698D774150EFD7F8F406A2BAB516DD7D22CB258323C59C6417F3",
-                    "03AEB5AE20783D4858F6767747963F144C7DB8ABA328625CC8A87F7676D8CDEEE7",
-                    "021A48BBCCAC751AE9EC1EA7A7F8D421D5FD60AAB44E6D2F37B31873098A77B7A3"
-                ],
-                "t": 2
-            },
             "expected_cinv_msgs": [
                 {
                     "enc_partial_secshares": [

@@ -205,7 +205,6 @@ def generate_coordinator_investigate_vectors():
     cinv_msgs = coordinator_investigate(pmsgs1)
     vectors["valid_test_cases"].append({
         "pmsgs1": [pmsg1_asdict(m) for m in pmsgs1],
-        "params": params_asdict(params),
         "expected_cinv_msgs": [cinv_msg_asdict(m) for m in cinv_msgs]
     })
 
