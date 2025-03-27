@@ -225,7 +225,7 @@ def participant_step1(
     seed: bytes, t: int, n: int, idx: int
 ) -> Tuple[
     ParticipantState,
-    ParticipantMsg,
+    bytes,
     # The following return value is a list of n partial secret shares generated
     # by this participant. The item at index i is supposed to be made available
     # to participant i privately, e.g., via an external secure channel. See also
@@ -245,7 +245,7 @@ def participant_step1(
 
     com = vss.commit()
     com_to_secret = com.commitment_to_secret()
-    msg = ParticipantMsg(com, pop)
+    msg = ParticipantMsg(com, pop).to_bytes()
     state = ParticipantState(t, n, idx, com_to_secret)
     return state, msg, partial_secshares_from_me
 
@@ -273,11 +273,12 @@ def participant_step2_prepare_secshare(
 
 def participant_step2(
     state: ParticipantState,
-    cmsg: CoordinatorMsg,
+    cmsg: bytes,
     secshare: Scalar,
 ) -> Tuple[DKGOutput, bytes]:
     t, n, idx, com_to_secret = state
-    coms_to_secrets, sum_coms_to_nonconst_terms, pops = cmsg
+    cmsg_parsed = CoordinatorMsg.from_bytes_and_n(cmsg, n)
+    coms_to_secrets, sum_coms_to_nonconst_terms, pops = cmsg_parsed
 
     assert len(coms_to_secrets) == n
     assert len(sum_coms_to_nonconst_terms) == t - 1
@@ -338,11 +339,12 @@ def participant_step2(
 
 def participant_investigate(
     error: UnknownFaultyParticipantOrCoordinatorError,
-    cinv: CoordinatorInvestigationMsg,
+    cinv: bytes,
     partial_secshares: List[Scalar],
 ) -> NoReturn:
     n, idx, secshare, pubshare = error.inv_data
-    partial_pubshares = cinv.partial_pubshares
+    cinv_parsed = CoordinatorInvestigationMsg.from_bytes(cinv)
+    partial_pubshares = cinv_parsed.partial_pubshares
 
     if GE.sum(*partial_pubshares) != pubshare:
         raise FaultyCoordinatorError("Sum of partial pubshares not equal to pubshare")
@@ -383,22 +385,23 @@ def participant_investigate(
 
 
 def coordinator_step(
-    pmsgs: List[ParticipantMsg], t: int, n: int
-) -> Tuple[CoordinatorMsg, DKGOutput, bytes]:
+    pmsgs: List[bytes], t: int, n: int
+) -> Tuple[bytes, DKGOutput, bytes]:
+    pmsgs_parsed = [ParticipantMsg.from_bytes(pmsg) for pmsg in pmsgs]
     # Sum the commitments to the i-th coefficients for i > 0
     #
     # This procedure corresponds to the one described by Pedersen in Section 5.1
     # of "Non-Interactive and Information-Theoretic Secure Verifiable Secret
     # Sharing". However, we don't sum the commitments to the secrets (i == 0)
     # because they'll be necessary to check the pops.
-    coms_to_secrets = [pmsg.com.commitment_to_secret() for pmsg in pmsgs]
+    coms_to_secrets = [pmsg.com.commitment_to_secret() for pmsg in pmsgs_parsed]
     # But we can sum the commitments to the non-constant terms.
     sum_coms_to_nonconst_terms = [
-        GE.sum(*(pmsg.com.commitment_to_nonconst_terms()[j] for pmsg in pmsgs))
+        GE.sum(*(pmsg.com.commitment_to_nonconst_terms()[j] for pmsg in pmsgs_parsed))
         for j in range(t - 1)
     ]
-    pops = [pmsg.pop for pmsg in pmsgs]
-    cmsg = CoordinatorMsg(coms_to_secrets, sum_coms_to_nonconst_terms, pops)
+    pops = [pmsg.pop for pmsg in pmsgs_parsed]
+    cmsg = CoordinatorMsg(coms_to_secrets, sum_coms_to_nonconst_terms, pops).to_bytes()
 
     sum_coms = assemble_sum_coms(coms_to_secrets, sum_coms_to_nonconst_terms)
     sum_coms_tweaked, _, _ = sum_coms.invalid_taproot_commit()
@@ -415,8 +418,14 @@ def coordinator_step(
 
 
 def coordinator_investigate(
-    pmsgs: List[ParticipantMsg],
-) -> List[CoordinatorInvestigationMsg]:
+    pmsgs: List[bytes],
+) -> List[bytes]:
     n = len(pmsgs)
-    all_partial_pubshares = [[pmsg.com.pubshare(i) for pmsg in pmsgs] for i in range(n)]
-    return [CoordinatorInvestigationMsg(all_partial_pubshares[i]) for i in range(n)]
+    pmsgs_parsed = [ParticipantMsg.from_bytes(pmsg) for pmsg in pmsgs]
+    all_partial_pubshares = [
+        [pmsg.com.pubshare(i) for pmsg in pmsgs_parsed] for i in range(n)
+    ]
+    return [
+        CoordinatorInvestigationMsg(all_partial_pubshares[i]).to_bytes()
+        for i in range(n)
+    ]

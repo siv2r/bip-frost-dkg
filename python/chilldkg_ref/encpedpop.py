@@ -277,7 +277,7 @@ def participant_step1(
     t: int,
     idx: int,
     random: bytes,
-) -> Tuple[ParticipantState, ParticipantMsg]:
+) -> Tuple[ParticipantState, bytes]:
     assert t < 2 ** (4 * 8)
     assert len(random) == 32
     n = len(enckeys)
@@ -303,8 +303,9 @@ def participant_step1(
     enc_shares = encrypt_multi(
         secnonce, pubnonce, deckey, enckeys, enc_context, idx, shares
     )
+    simpl_pmsg_parsed = simplpedpop.ParticipantMsg.from_bytes(simpl_pmsg)
 
-    pmsg = ParticipantMsg(simpl_pmsg, pubnonce, enc_shares)
+    pmsg = ParticipantMsg(simpl_pmsg_parsed, pubnonce, enc_shares).to_bytes()
     state = ParticipantState(simpl_state, pubnonce, enckeys, idx)
     return state, pmsg
 
@@ -312,11 +313,12 @@ def participant_step1(
 def participant_step2(
     state: ParticipantState,
     deckey: bytes,
-    cmsg: CoordinatorMsg,
+    cmsg: bytes,
     enc_secshare: Scalar,
 ) -> Tuple[simplpedpop.DKGOutput, bytes]:
     simpl_state, pubnonce, enckeys, idx = state
-    simpl_cmsg, pubnonces = cmsg
+    cmsg_parsed = CoordinatorMsg.from_bytes_and_n(cmsg, len(enckeys))
+    simpl_cmsg, pubnonces = cmsg_parsed
 
     reported_pubnonce = pubnonces[idx]
     if reported_pubnonce != pubnonce:
@@ -328,7 +330,7 @@ def participant_step2(
 
     try:
         dkg_output, eq_input = simplpedpop.participant_step2(
-            simpl_state, simpl_cmsg, secshare
+            simpl_state, simpl_cmsg.to_bytes(), secshare
         )
     except UnknownFaultyParticipantOrCoordinatorError as e:
         assert isinstance(e.inv_data, simplpedpop.ParticipantInvestigationData)
@@ -343,10 +345,11 @@ def participant_step2(
 
 def participant_investigate(
     error: UnknownFaultyParticipantOrCoordinatorError,
-    cinv: CoordinatorInvestigationMsg,
+    cinv: bytes,
 ) -> NoReturn:
     simpl_inv_data, enc_secshare, pads = error.inv_data
-    enc_partial_secshares, partial_pubshares = cinv
+    cinv_parsed = CoordinatorInvestigationMsg.from_bytes(cinv)
+    enc_partial_secshares, partial_pubshares = cinv_parsed
     assert len(enc_partial_secshares) == len(pads)
     partial_secshares = [
         enc_partial_secshare - pad
@@ -357,7 +360,7 @@ def participant_investigate(
     try:
         simplpedpop.participant_investigate(
             UnknownFaultyParticipantOrCoordinatorError(simpl_inv_data),
-            simpl_cinv,
+            simpl_cinv.to_bytes(),
             partial_secshares,
         )
     except simplpedpop.SecshareSumError as e:
@@ -378,24 +381,27 @@ def participant_investigate(
 
 
 def coordinator_step(
-    pmsgs: List[ParticipantMsg],
+    pmsgs: List[bytes],
     t: int,
     enckeys: List[bytes],
-) -> Tuple[CoordinatorMsg, simplpedpop.DKGOutput, bytes, List[Scalar]]:
+) -> Tuple[bytes, simplpedpop.DKGOutput, bytes, List[Scalar]]:
     n = len(enckeys)
     if n != len(pmsgs):
         raise ValueError
 
-    simpl_pmsgs = [pmsg.simpl_pmsg for pmsg in pmsgs]
-    simpl_cmsg, dkg_output, eq_input = simplpedpop.coordinator_step(simpl_pmsgs, t, n)
-    pubnonces = [pmsg.pubnonce for pmsg in pmsgs]
+    pmsgs_parsed = [ParticipantMsg.from_bytes_and_n(pmsg, n) for pmsg in pmsgs]
+    simpl_cmsg, dkg_output, eq_input = simplpedpop.coordinator_step(
+        pmsgs=[pmsg.simpl_pmsg.to_bytes() for pmsg in pmsgs_parsed], t=t, n=n
+    )
+    simpl_cmsg_parsed = simplpedpop.CoordinatorMsg.from_bytes_and_n(simpl_cmsg, n)
+    pubnonces = [pmsg.pubnonce for pmsg in pmsgs_parsed]
     for i in range(n):
-        if len(pmsgs[i].enc_shares) != n:
+        if len(pmsgs_parsed[i].enc_shares) != n:
             raise FaultyParticipantOrCoordinatorError(
                 i, "Participant sent enc_shares with invalid length"
             )
     enc_secshares = [
-        Scalar.sum(*([pmsg.enc_shares[i] for pmsg in pmsgs])) for i in range(n)
+        Scalar.sum(*([pmsg.enc_shares[i] for pmsg in pmsgs_parsed])) for i in range(n)
     ]
     eq_input += b"".join(enckeys) + b"".join(pubnonces)
 
@@ -409,7 +415,7 @@ def coordinator_step(
     # EncPedPop will need to decide how to transmit enc_secshares[i] to
     # participant i for participant_step2(); we leave this unspecified.
     return (
-        CoordinatorMsg(simpl_cmsg, pubnonces),
+        CoordinatorMsg(simpl_cmsg_parsed, pubnonces).to_bytes(),
         dkg_output,
         eq_input,
         enc_secshares,
@@ -417,19 +423,24 @@ def coordinator_step(
 
 
 def coordinator_investigate(
-    pmsgs: List[ParticipantMsg],
-) -> List[CoordinatorInvestigationMsg]:
+    pmsgs: List[bytes],
+) -> List[bytes]:
     n = len(pmsgs)
-    simpl_pmsgs = [pmsg.simpl_pmsg for pmsg in pmsgs]
+    pmsgs_parsed = [ParticipantMsg.from_bytes_and_n(pmsg, n) for pmsg in pmsgs]
+    simpl_pmsgs = [pmsg.simpl_pmsg.to_bytes() for pmsg in pmsgs_parsed]
 
     all_enc_partial_secshares = [
-        [pmsg.enc_shares[i] for pmsg in pmsgs] for i in range(n)
+        [pmsg.enc_shares[i] for pmsg in pmsgs_parsed] for i in range(n)
     ]
     simpl_cinvs = simplpedpop.coordinator_investigate(simpl_pmsgs)
+    simpl_cinvs_parsed = [
+        simplpedpop.CoordinatorInvestigationMsg.from_bytes(simpl_cinv)
+        for simpl_cinv in simpl_cinvs
+    ]
     cinvs = [
         CoordinatorInvestigationMsg(
-            all_enc_partial_secshares[i], simpl_cinvs[i].partial_pubshares
-        )
+            all_enc_partial_secshares[i], simpl_cinvs_parsed[i].partial_pubshares
+        ).to_bytes()
         for i in range(n)
     ]
     return cinvs
