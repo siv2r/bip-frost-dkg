@@ -25,8 +25,6 @@ import chilldkg_ref.chilldkg as chilldkg
 
 from vector_generator.util import (
     assert_raises,
-    expect_exception,
-    exception_asdict,
     bytes_to_hex,
     params_from_dict,
     params_asdict,
@@ -562,9 +560,9 @@ def test_participant_investigate_vectors():
         expected_error = test_case["error"]
         try:
             chilldkg.participant_step2(hostseckey, state1, cmsg1)
-        except UnknownFaultyParticipantOrCoordinatorError as e:
+        except UnknownFaultyParticipantOrCoordinatorError as e: # noqa: F841
             assert_raises(
-                lambda: chilldkg.participant_investigate(e, cinv_msg),
+                lambda: chilldkg.participant_investigate(e, cinv_msg), # noqa: F821
                 expected_error
             )
         except Exception as e:
@@ -678,17 +676,17 @@ def test_recover_vectors():
             expected_error
         )
 
-# test_chilldkg_params_validate()
-# test_vss_correctness()
-# test_recover_secret()
-# for t, n in [(1, 1), (1, 2), (2, 2), (2, 3), (2, 5)]:
-#     test_correctness(t, n, simulate_simplpedpop)
-#     test_correctness(t, n, simulate_simplpedpop, investigation=True)
-#     test_correctness(t, n, simulate_encpedpop)
-#     test_correctness(t, n, simulate_encpedpop, investigation=True)
-#     test_correctness(t, n, simulate_chilldkg, recovery=True)
-#     test_correctness(t, n, simulate_chilldkg, recovery=True, investigation=True)
-#     test_correctness(t, n, simulate_chilldkg_full, recovery=True)
+test_chilldkg_params_validate()
+test_vss_correctness()
+test_recover_secret()
+for t, n in [(1, 1), (1, 2), (2, 2), (2, 3), (2, 5)]:
+    test_correctness(t, n, simulate_simplpedpop)
+    test_correctness(t, n, simulate_simplpedpop, investigation=True)
+    test_correctness(t, n, simulate_encpedpop)
+    test_correctness(t, n, simulate_encpedpop, investigation=True)
+    test_correctness(t, n, simulate_chilldkg, recovery=True)
+    test_correctness(t, n, simulate_chilldkg, recovery=True, investigation=True)
+    test_correctness(t, n, simulate_chilldkg_full, recovery=True)
 test_hostpubkey_gen_vectors()
 test_params_id_vectors()
 test_participant_step1_vectors()

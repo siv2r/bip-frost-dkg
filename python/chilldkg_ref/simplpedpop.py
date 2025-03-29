@@ -1,4 +1,3 @@
-from secrets import token_bytes as random_bytes
 from typing import List, NamedTuple, NewType, Tuple, Optional, NoReturn
 
 from secp256k1lab.bip340 import schnorr_sign, schnorr_verify

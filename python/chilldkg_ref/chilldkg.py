@@ -8,7 +8,6 @@ their arguments and return values, and the exceptions they raise; see also the
 `__all__` list. All other definitions are internal.
 """
 
-from secrets import token_bytes as random_bytes
 from typing import Any, Tuple, List, NamedTuple, NewType, Optional, NoReturn, Dict
 
 from secp256k1lab.secp256k1 import Scalar, GE
