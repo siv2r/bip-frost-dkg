@@ -36,7 +36,7 @@ def pop_msg(idx: int) -> bytes:
 
 def pop_prove(seckey: bytes, idx: int) -> Pop:
     sig = schnorr_sign(
-        pop_msg(idx), seckey, aux_rand=b"\x00"*32, tag_prefix=POP_MSG_TAG
+        pop_msg(idx), seckey, aux_rand=b"\x00" * 32, tag_prefix=POP_MSG_TAG
     )
     return Pop(sig)
 
