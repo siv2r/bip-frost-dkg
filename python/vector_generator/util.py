@@ -1,5 +1,6 @@
+from __future__ import annotations
 import json
-from typing import NoReturn, List
+from typing import List, Union, Dict, Sequence
 
 from secp256k1lab.secp256k1 import Scalar, GE
 
@@ -17,12 +18,14 @@ import chilldkg_ref.simplpedpop as simplpedpop
 import chilldkg_ref.encpedpop as encpedpop
 import chilldkg_ref.chilldkg as chilldkg
 
+ErrorInfo = Dict[str, Union[int, str, "ErrorInfo"]]
+
 
 def bytes_to_hex(data: bytes) -> str:
     return data.hex().upper()
 
 
-def bytes_list_to_hex(lst: List[bytes]) -> List[str]:
+def bytes_list_to_hex(lst: Sequence[bytes]) -> List[str]:
     return [l_i.hex().upper() for l_i in lst]
 
 
@@ -30,13 +33,13 @@ def hex_list_to_bytes(lst: List[str]) -> List[bytes]:
     return [bytes.fromhex(l_i) for l_i in lst]
 
 
-def write_json(filename: str, data: dict) -> NoReturn:
+def write_json(filename: str, data: dict) -> None:
     with open(filename, "w") as f:
         json.dump(data, f, indent=4)
 
 
 def exception_asdict(e: Exception) -> dict:
-    error_info = {"type": e.__class__.__name__}
+    error_info: ErrorInfo = {"type": e.__class__.__name__}
 
     for key, value in e.__dict__.items():
         if isinstance(value, (str, int)):
@@ -178,7 +181,7 @@ def params_from_dict(params: dict) -> SessionParams:
 
 
 def pmsg1_from_dict(pmsg1: dict) -> ParticipantMsg1:
-    pop = bytes.fromhex(pmsg1["simpl_pmsg"]["pop"])
+    pop = simplpedpop.Pop(bytes.fromhex(pmsg1["simpl_pmsg"]["pop"]))
     com = bytes.fromhex(pmsg1["simpl_pmsg"]["com"])
     pubnonce = bytes.fromhex(pmsg1["pubnonce"])
     enc_shares = hex_list_to_bytes(pmsg1["enc_shares"])
@@ -209,7 +212,7 @@ def cmsg1_from_dict(cmsg1: dict) -> CoordinatorMsg1:
         GE.from_bytes_with_infinity(b)
         for b in hex_list_to_bytes(cmsg1["simpl_cmsg"]["sum_coms_to_nonconst_terms"])
     ]
-    pops = hex_list_to_bytes(cmsg1["simpl_cmsg"]["pops"])
+    pops = [simplpedpop.Pop(b) for b in hex_list_to_bytes(cmsg1["simpl_cmsg"]["pops"])]
     pubnonces = hex_list_to_bytes(cmsg1["pubnonces"])
     enc_secshares = [
         Scalar.from_bytes(share) for share in hex_list_to_bytes(cmsg1["enc_secshares"])
